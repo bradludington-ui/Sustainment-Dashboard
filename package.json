@@ -1,0 +1,12 @@
+{
+  "name": "sustainment-dashboard",
+  "version": "1.0.0",
+  "private": true,
+  "description": "The Sustainment Dashboard: one page that links every sustainment tool.",
+  "type": "module",
+  "scripts": {
+    "build": "node build.mjs",
+    "check": "node build.mjs --check && node tools/check.mjs",
+    "shoot": "node tools/shoot.mjs"
+  }
+}
