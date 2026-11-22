@@ -22,19 +22,27 @@ Everything the page shows comes from one file, **`src/tools.js`**. Its header ex
 3. `npm run check` makes sure the list is well formed and the page loads nothing from outside itself.
 4. Commit both files and upload the new `sustainment-dashboard.html` to Teams over the old one.
 
-## The catalog: links to everything else
+## The catalog: files, websites and forms
 
-Trackers, briefings, references, team sites and other dashboards live in **`src/catalog.js`**, under **Catalog** in
-the menu. Each link is one line with a name, a short note, a category and a type (`excel`, `powerpoint`, `word`, `pdf`,
-`sharepoint`, `teams`, `folder`, `web`). Paste its address from Teams or SharePoint (**⋯ › Copy link**) into `url`.
+Under **Catalog** in the menu: trackers, briefings, forms, job websites, Air Force and Navy employee links, references
+and team sites, each in a section. Excel, PowerPoint and Word links open in the desktop app (**Open in Excel**), not the
+browser preview; **Browser** opens the web version; everything else opens in a new tab. Anyone can **pin** the links they
+use most (kept in their own browser), and the search box covers tools and the catalog together.
 
-- **Excel, PowerPoint and Word links open in the desktop app** (**Open in Excel**), not the browser preview; **Browser**
-  opens the web version. Other links open in a new tab.
-- **Pins:** anyone can pin the links they use most. Pins sit at the top of the catalog and the home page, and are kept
-  in that person's browser only.
-- **Search** (the box at the top) looks through the tools and the catalog together.
+### Adding, changing and deleting links
 
-Categories are at the top of the file; add one there to get a new section and menu entry.
+In your **maintainer copy** (below), press **Edit catalog**:
+
+- **+ Add link** on a section, or the pencil on a link to change it. Paste the address from Teams or SharePoint
+  (**⋯ › Copy link**); the type is guessed from it. The bin deletes a link; **Undo delete** puts it back.
+- **+ Add a section**, **Change section** (rename it, describe it, or delete it with its links), and ▲▼ to reorder.
+- Every edit is kept in your browser at once, so a closed tab loses nothing; the bar says **Unsaved changes**.
+- **Save** writes your maintainer file. **Save team copy…** writes `sustainment-dashboard.html` with the same links and
+  no editor: upload that one to Teams. A ● on the button means the team copy is out of date.
+- **Import links from a copy…** takes the links from another saved copy. Use it when you download a newer version
+  of the dashboard, so your links come with you.
+
+The links live inside the saved files, not in this repository: `src/catalog.js` is only what a fresh build starts with.
 
 ## Your maintainer copy: the latest versions
 
@@ -55,10 +63,10 @@ so the panel says what is on Teams.
 | `sustainment-dashboard.html` | The page people open (the team copy). Built; never edit it by hand. |
 | `maintainer/sustainment-dashboard-maintainer.html` | Your copy, with Settings. Built. |
 | `src/tools.js` | The tool list. The file you edit. |
-| `src/catalog.js` | The catalog of links. The other file you edit. |
+| `src/catalog.js` | The starting catalog for a fresh build. Links are edited in the page (Edit catalog). |
 | `src/app.js` | Draws the page from the two lists. |
 | `src/sources.js` | Where each tool's latest version is on GitHub. Maintainer copy only. |
-| `src/maint.js` | The Settings panel. Maintainer copy only. |
+| `src/maint.js` | The Settings panel and the catalog editor. Maintainer copy only. |
 | `src/style.css` | The look (Harbor, as ORBIT and APEX). |
 | `src/shell.html` | The page around them, with its Content-Security-Policy. |
 | `build.mjs` | Puts the four together into one file. |

@@ -59,6 +59,8 @@ const UI = {
   gear: glyph('<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>'),
   pin: glyph('<path d="m12 3 2.6 5.6 6 .7-4.5 4.1 1.2 6L12 16.4 6.7 19.4l1.2-6L3.4 9.3l6-.7z"/>'),
   pinOn: '<svg viewBox="0 0 24 24" aria-hidden="true" fill="currentColor" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="m12 3 2.6 5.6 6 .7-4.5 4.1 1.2 6L12 16.4 6.7 19.4l1.2-6L3.4 9.3l6-.7z"/></svg>',
+  edit: glyph('<path d="M4 20h4L19 9l-4-4L4 16z"/><path d="m13.5 6.5 4 4"/>'),
+  trash: glyph('<path d="M4 7h16M10 11v6M14 11v6"/><path d="M6 7l1 13h10l1-13M9 7V4h6v3"/>'),
   copy: glyph('<rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a1 1 0 0 1 1-1h10"/>'),
 };
 const iconOf = t => (ICONS[t.icon] || ICONS.grid)();
@@ -70,11 +72,48 @@ const TYPES = {
   powerpoint: { label: 'PowerPoint', mark: 'P',   app: 'ms-powerpoint', appName: 'PowerPoint' },
   word:       { label: 'Word',       mark: 'W',   app: 'ms-word',       appName: 'Word' },
   pdf:        { label: 'PDF',        mark: 'PDF' },
+  form:       { label: 'Form',       mark: 'F' },
   sharepoint: { label: 'SharePoint', mark: 'S' },
   teams:      { label: 'Teams',      mark: 'T' },
   folder:     { label: 'Folder',     mark: '▤' },
   web:        { label: 'Web',        mark: '◎' },
 };
+
+// ---- the catalog: read from the data block in the file (id="catData"), never from code, so a saved file carries its
+// own links. normCatalog() is the one reading of a catalog, for this file and for one imported from another copy: it
+// keeps what it can show and drops nothing silently (what it changed is listed in .fixed).
+function normCatalog(raw) {
+  const fixed = [], str = v => (typeof v === 'string' ? v : v == null ? '' : String(v)).trim();
+  const out = { categories: [], items: [] };
+  const seen = new Set();
+  for (const k of (raw && Array.isArray(raw.categories) ? raw.categories : [])) {
+    const name = str(k && k.name); let id = str(k && k.id).toLowerCase().replace(/[^a-z0-9-]+/g, '-');
+    if (!name) { fixed.push('a section with no name was left out'); continue; }
+    if (!id) id = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'section';
+    while (seen.has(id)) id += '-2';
+    seen.add(id); out.categories.push({ id, name, blurb: str(k.blurb) });
+  }
+  for (const c of (raw && Array.isArray(raw.items) ? raw.items : [])) {
+    const name = str(c && c.name);
+    if (!name) { fixed.push('a link with no name was left out'); continue; }
+    const it = { name, note: str(c.note), category: str(c.category), type: str(c.type), url: str(c.url) };
+    if (c.id) it.id = str(c.id).toLowerCase().replace(/[^a-z0-9-]+/g, '-');
+    if (!TYPES[it.type]) { fixed.push('“' + name + '”: type “' + it.type + '” read as Web'); it.type = 'web'; }
+    if (it.url && !linkOk(it.url)) { fixed.push('“' + name + '”: its link is not https:// and was set aside (' + it.url.slice(0, 80) + ')'); it.url = ''; }
+    if (!seen.has(it.category)) fixed.push('“' + name + '”: section “' + it.category + '” does not exist; listed under Other');
+    out.items.push(it);
+  }
+  out.fixed = fixed;
+  return out;
+}
+function readCatalog() {
+  try { const el = document.getElementById('catData'); return normCatalog(JSON.parse(el ? el.textContent : 'null') || {}); }
+  catch (e) { const c = normCatalog({}); c.fixed.push('the catalog in this file could not be read (' + e.message + ')'); return c; }
+}
+let CATALOG = readCatalog();
+// the maintainer copy's editor plugs in here (src/maint.js); the team copy has no MAINT_HOOKS, so every hook draws nothing
+const HOOK = (name, ...a) => (typeof MAINT_HOOKS !== 'undefined' && typeof MAINT_HOOKS[name] === 'function') ? MAINT_HOOKS[name](...a) : '';
+const editing = () => !!HOOK('editing');
 
 // ---- state
 const S = {
@@ -86,8 +125,8 @@ const S = {
 const areas = () => DASH.areas || [];
 const tools = () => (DASH.tools || []).slice();
 const areaOf = t => areas().find(a => a.id === t.area);
-const cats = () => (typeof CATALOG !== 'undefined' && CATALOG.categories) || [];
-const citems = () => ((typeof CATALOG !== 'undefined' && CATALOG.items) || []).slice();
+const cats = () => CATALOG.categories || [];
+const citems = () => (CATALOG.items || []).slice();
 const catOf = c => cats().find(k => k.id === c.category);
 const ckey = c => 'c:' + (c.id || String(c.name || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''));
 const viewOk = v => v === 'all' || v === 'other' || v === 'cat' || areas().some(a => a.id === v) || (v.startsWith('cat:') && cats().some(k => 'cat:' + k.id === v));
@@ -198,6 +237,7 @@ function crow(c) {
     acts = '<a class="btn sm pri" href="' + esc(url) + '"' + tab + ' data-open="' + esc(k) + '">' + UI.open + 'Open<span class="vh"> (opens in a new tab)</span></a>';
   }
   if (ok) acts += '<button type="button" class="btn sm ico-only" data-ccopy="' + esc(k) + '" title="Copy link" aria-label="Copy the link to ' + esc(c.name) + '">' + UI.copy + '</button>';
+  acts += HOOK('rowActs', c, k);
   acts += '<button type="button" class="btn sm ico-only pin" data-pin="' + esc(k) + '" aria-pressed="' + pinned + '" title="' + (pinned ? 'Unpin' : 'Pin to the top') + '" aria-label="Pin ' + esc(c.name) + '">' + (pinned ? UI.pinOn : UI.pin) + '</button>';
   return '<li class="crow' + (ok ? '' : ' off') + '"><span class="ctype t-' + esc(TYPES[c.type] ? c.type : 'web') + '" title="' + esc(T.label) + '" aria-hidden="true">' + esc(T.mark) + '</span>'
     + '<div class="cmain">' + name + '<span class="cmeta"><span class="vh">' + esc(T.label) + '. </span>' + (c.note ? hl(c.note) : '') + '</span></div>'
@@ -216,19 +256,24 @@ function catalogHtml() {
   const chip = (v, l) => '<button type="button" class="chip" data-ctype="' + v + '" aria-pressed="' + (S.ctype === v) + '">' + esc(l) + '</button>';
   const present = Object.keys(TYPES).filter(k => all.some(c => c.type === k));
   let h = '<div class="hero slim"><div><h2>Catalog</h2><p>Links to the trackers, briefings and references used around the office. Office files open in their desktop app.</p></div>'
-    + '<div class="stats"><div class="stat"><b>' + citems().length + '</b><span>links</span></div><div class="stat"><b>' + cats().length + '</b><span>categories</span></div></div></div>';
+    + '<div class="stats"><div class="stat"><b>' + citems().length + '</b><span>links</span></div><div class="stat"><b>' + cats().length + '</b><span>sections</span></div></div></div>';
   if (!one && !S.q) h += pinnedHtml();
   h += '<div class="bar" role="group" aria-label="Show by type"><span class="lbl">Type</span>' + chip('all', 'All') + present.map(k => chip(k, TYPES[k].label)).join('')
     + '<span class="shown" role="status">' + vis.length + ' of ' + all.length + ' links' + (S.q ? ' matching “' + esc(S.q) + '”' : '') + '</span></div>';
   const groups = one ? cats().filter(k => k.id === one) : cats().concat([{ id: '', name: 'Other', blurb: '' }]);
+  const ed = editing() && !S.q && S.ctype === 'all';
   let any = false;
   for (const g of groups) {
     const list = vis.filter(c => g.id ? c.category === g.id : !catOf(c)).sort((a, b) => String(a.name).localeCompare(String(b.name)));
-    if (!list.length) continue;
+    // an empty section shows while editing (so a link can be added to it) and when it is the section chosen in the menu
+    if (!list.length && !(ed && g.id) && !(one && g.id === one && !S.q && S.ctype === 'all')) continue;
     any = true;
-    h += '<section class="area"><header><h3>' + esc(g.name) + ' <span class="hn">' + list.length + '</span></h3>' + (g.blurb ? '<p>' + esc(g.blurb) + '</p>' : '') + '</header>' + clist(list) + '</section>';
+    h += '<section class="area"><header><h3>' + esc(g.name) + ' <span class="hn">' + list.length + '</span></h3>' + (g.blurb ? '<p>' + esc(g.blurb) + '</p>' : '')
+      + (g.id ? HOOK('sectionActs', g) : '') + '</header>'
+      + (list.length ? clist(list) : '<div class="empty sm">No links in this section yet.</div>') + '</section>';
   }
-  if (!any) h += '<div class="empty">' + (S.q ? 'No link matches “' + esc(S.q) + '”. Try fewer words, or clear the search (Esc).' : 'No links here yet. Add them to src/catalog.js.') + '</div>';
+  if (!any) h += '<div class="empty">' + (S.q ? 'No link matches “' + esc(S.q) + '”. Try fewer words, or clear the search (Esc).' : 'No links here yet.') + '</div>';
+  if (ed && !one) h += HOOK('catalogFoot');
   return h;
 }
 
@@ -259,8 +304,10 @@ function mainHtml() {
 }
 
 function draw() {
+  if (!viewOk(S.view)) S.view = 'cat';   // a section deleted while it was open
+  HOOK('drawBar');
   document.getElementById('rail').innerHTML = railHtml();
-  document.getElementById('main').innerHTML = mainHtml() + '<footer class="foot">To add a tool or change a link, edit <code>src/tools.js</code>; to add a link, <code>src/catalog.js</code>. Then rebuild. This page holds no data.</footer>';
+  document.getElementById('main').innerHTML = mainHtml() + '<footer class="foot">This page holds no data: it is a list of links. Pins and recently opened are kept in your browser only.' + HOOK('footNote') + '</footer>';
 }
 
 function toast(msg) {
@@ -300,10 +347,11 @@ function boot() {
     + '<div class="search" role="search">' + UI.search + '<label class="vh" for="q">Search the tools and the catalog</label>'
     + '<input id="q" type="search" placeholder="Search tools and links" autocomplete="off"><kbd>/</kbd></div>'
     + (HAS_MAINT ? '<button type="button" class="gear" id="gear" aria-haspopup="dialog" title="Settings: latest versions">' + UI.gear + '<span>Settings</span></button>' : '')
-    + '</header>' + (HAS_MAINT ? '<div class="maint" role="note">Maintainer copy: keep this file to yourself. The team opens sustainment-dashboard.html.</div>' : '')
+    + '</header>' + (HAS_MAINT ? '<div class="maint" id="maintBar"></div>' : '')
     + '<div class="shell"><nav class="rail" id="rail" aria-label="Tools and catalog"></nav><main id="main" tabindex="-1"></main></div>'
     + '<div class="toast" id="toast" role="status" hidden></div>'
     + (HAS_MAINT ? '<dialog class="sdlg" id="sdlg" aria-labelledby="sdlgT"></dialog>' : '');
+  HOOK('init');
   const q = document.getElementById('q');
   q.addEventListener('input', () => { S.q = q.value.trim(); draw(); });
   document.addEventListener('keydown', e => {

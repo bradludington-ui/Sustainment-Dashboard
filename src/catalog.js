@@ -1,12 +1,12 @@
-// THE CATALOG: links to the things used around the office (trackers, briefings, references, sites). This is the file
-// you edit to add, change or remove a link; tools.js is only for the tools themselves.
-//
-// To add a link, copy one entry in `items`, change it, and run `npm run build`.
+// THE STARTING CATALOG. Since the editor (Edit catalog, in the maintainer copy), the catalog people see lives INSIDE the
+// saved dashboard file, and Brad adds, changes and deletes links there. This file is only what a freshly built copy
+// starts with; a newer build takes Brad's links across with "Import links from a copy…". Editing it changes nothing in
+// a dashboard already saved.
 //
 //   name      what the row says
 //   note      one short line: what it is, who owns it, how often it changes (optional)
 //   category  one of the `categories` ids below: the group the row sits in
-//   type      'excel', 'powerpoint', 'word', 'pdf', 'sharepoint', 'teams', 'folder' or 'web'
+//   type      'excel', 'powerpoint', 'word', 'pdf', 'form', 'sharepoint', 'teams', 'folder' or 'web'
 //             An Excel, PowerPoint or Word link gets "Open in Excel" (or PowerPoint, Word), which opens the file straight
 //             in the desktop app, and "Browser" for the web version. Every other type opens in a new tab.
 //   url       the link. In Teams or SharePoint: the file's ⋯ menu › Copy link, and paste it here.
@@ -20,6 +20,10 @@ const CATALOG = {
   categories: [
     { id: 'trackers',  name: 'Trackers',             blurb: 'Working spreadsheets the office keeps current.' },
     { id: 'briefings', name: 'Briefings & slides',   blurb: 'Recurring reviews and the decks behind them.' },
+    { id: 'forms',     name: 'Forms',                blurb: 'Forms to fill in, and where to send them.' },
+    { id: 'websites',  name: 'Job websites',         blurb: 'Websites used for the work itself.' },
+    { id: 'af',        name: 'Air Force employees',  blurb: 'Pay, personnel, training and support for Air Force employees.' },
+    { id: 'navy',      name: 'Navy employees',       blurb: 'Pay, personnel, training and support for Navy employees.' },
     { id: 'reference', name: 'Reference',            blurb: 'Guidance, templates and policy.' },
     { id: 'sites',     name: 'Sites & dashboards',   blurb: 'Team sites, channels and other dashboards in Teams.' },
   ],

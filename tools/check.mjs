@@ -9,7 +9,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import vm from 'node:vm';
-import { assemble, OUT, OUT_MAINT } from '../build.mjs';
+import { assemble, OUT, OUT_MAINT, FENCE_A, FENCE_B, catalogJson } from '../build.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const fails = [];
@@ -59,7 +59,7 @@ const cx = {};
 try { vm.runInNewContext(readFileSync(join(ROOT, 'src/catalog.js'), 'utf8') + '\n;this.CATALOG = CATALOG;', cx); } catch (e) { fail('src/catalog.js does not run: ' + e.message); }
 const C = cx.CATALOG;
 if (C) {
-  const TYPES = ['excel', 'powerpoint', 'word', 'pdf', 'sharepoint', 'teams', 'folder', 'web'];
+  const TYPES = ['excel', 'powerpoint', 'word', 'pdf', 'form', 'sharepoint', 'teams', 'folder', 'web'];
   const okUrl = u => u === '' || /^https:\/\/[^\s"'<>]+$/i.test(String(u).trim());
   const cids = new Set();
   for (const k of C.categories || []) {
@@ -92,6 +92,15 @@ for (const m of built.matchAll(/<script>([\s\S]*?)<\/script>/g)) {
 }
 
 // 5
+if (built.includes(FENCE_A) || built.includes(FENCE_B)) fail('a maintainer fence survived into the team copy');
+const fa = builtM.split(FENCE_A).length - 1, fb = builtM.split(FENCE_B).length - 1;
+if (fa !== fb || fa < 2) fail('the maintainer copy has ' + fa + ' fence openings and ' + fb + ' closings (expected the same number, at least 2)');
+for (const [nm, html] of [['team copy', built], ['maintainer copy', builtM]]) {
+  const m = /<script id="catData" type="application\/json">([\s\S]*?)<\/script>/.exec(html);
+  if (!m) { fail('the ' + nm + ' has no catalog block'); continue; }
+  try { JSON.parse(m[1]); } catch (e) { fail('the ' + nm + '’s catalog block is not JSON: ' + e.message); }
+  if (m[1] !== catalogJson()) fail('the ' + nm + '’s catalog block is not src/catalog.js');
+}
 if (/github/i.test(built)) fail('the team copy (sustainment-dashboard.html) mentions GitHub: download links belong in src/sources.js, which only the maintainer copy carries');
 if (/\bSOURCES\b|(sources|maint)\.js =====|function openSettings|function settingsHtml/.test(built)) fail('the team copy carries the source list or the Settings panel');
 for (const m of builtM.matchAll(/<script>([\s\S]*?)<\/script>/g)) {

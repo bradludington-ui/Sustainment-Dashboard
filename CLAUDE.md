@@ -19,9 +19,21 @@ dashboard, and more). See README.md for what it is and how it is updated.
   readily be able to download the latest versions. So the links are LEFT OUT of the team copy, never hidden in it
   (View Source would show them). `npm run check` fails on any mention of GitHub in the team copy, comments included:
   never write a GitHub address, or the panel's code, into tools.js, app.js, style.css or shell.html.
-- **Two lists, one home each.** `src/tools.js` describes the tools built here; `src/catalog.js` is the catalog of links
-  to everything else (trackers, briefings, references, other dashboards). Nothing is listed in both. A new field goes in
-  its list and in `tools/check.mjs` together.
+- **Two lists, one home each.** `src/tools.js` describes the tools built here; the catalog holds links to everything
+  else (trackers, briefings, forms, job websites, Air Force and Navy employee links, other dashboards). Nothing is
+  listed in both.
+- **The catalog lives in the saved file, ORBIT's way** (Brad, 22 Nov 2026: "I need to be able to add, modify and
+  delete"). It is a JSON block, `<script id="catData">`, read by `readCatalog()` → `normCatalog()` (the one reading of a
+  catalog, also used by Import). Brad edits it in the maintainer copy (Edit catalog, `src/maint.js`); Save writes the
+  maintainer file, Save team copy writes the team file. `src/catalog.js` is only the STARTING catalog of a fresh build:
+  never assume it matches what Brad's files hold. A new build carries his links across with Import links from a copy.
+- **The team copy is the maintainer copy with the fences cut out.** `sources.js` and `maint.js` are built inside
+  `/*@MAINT>*/ … /*<MAINT@*/`; `teamOf()` in build.mjs and `htmlWith(…, true)` in maint.js cut them the same way, so the
+  page's own Save team copy and the build cannot drift apart. A fence marker never appears literally in a source file
+  (build it from pieces): a cut that met its own marker would eat the code doing the cutting. Every `<` in the catalog
+  block is written `\u003c`, so a link or note holding `</script>` cannot end the block.
+- **The editor plugs in through `HOOK()`** in app.js (`MAINT_HOOKS` in maint.js). The team copy has no `MAINT_HOOKS`,
+  so every hook draws nothing there. Put maintainer-only behaviour behind a hook, never in app.js.
 - **Office links open in the desktop app** through Office's own form (`ms-excel:ofe|u|<https address>`, and
   `ms-powerpoint`, `ms-word`), with a Browser button beside it. Brad asked for Office files never to open in preview.
 - **No data, ever.** The hub links to tools; it never holds budget or contract figures. Tools that hold data live in

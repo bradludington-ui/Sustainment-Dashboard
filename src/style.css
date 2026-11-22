@@ -190,3 +190,31 @@ a.cname:hover{text-decoration:underline}
   .ctag{display:none}
   .cacts{grid-column:1 / -1;justify-content:flex-start}
 }
+
+/* the maintainer bar and the catalog editor (maintainer copy only; the team copy never draws them) */
+.maint{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;padding:6px 20px;background:var(--ochreBg);border-bottom:1px solid var(--ochre);color:#5c3706;font-size:13px;font-weight:700}
+.maint .sp{flex:1}
+.maint .mb{min-height:30px;padding:4px 12px;border:1px solid var(--ochre);border-radius:8px;background:#fff;color:#5c3706;font-weight:700;cursor:pointer}
+.maint .mb:hover{background:#fbf1de}
+.maint .mb[aria-pressed=true]{background:#5c3706;color:#fff;border-color:#5c3706}
+.maint .mb.pri{background:var(--acc);border-color:var(--acc);color:var(--onAcc)}
+.maint .mb.pri[aria-disabled=true]{background:var(--spanel2);border-color:var(--sline);color:var(--smut);cursor:default}
+.maint .pill{padding:2px 10px;border-radius:999px;border:1px solid var(--sedge);background:#fff;color:var(--sink);font-weight:700}
+.maint .pill.warn{background:var(--ochre);border-color:var(--ochre);color:#fff}
+.dot-warn{color:var(--ochre)}
+.btn.danger{color:#8c1d3f;border-color:#8c1d3f}
+.btn.danger:hover{background:#f7e3ea}
+.btn.pri.danger{background:#8c1d3f;color:#fff}
+.btn[disabled]{opacity:.45;cursor:default}
+section.area > header .sacts2{display:flex;flex-wrap:wrap;gap:6px;margin-left:auto}
+.empty.sm{margin:0;padding:14px;font-size:13px}
+.addsec{margin:18px 0 0}
+.eform{display:flex;flex-direction:column;gap:12px;padding:16px 18px 4px}
+.ef{display:flex;flex-direction:column;gap:4px;min-width:0;flex:1}
+.ef label{font-weight:700;font-size:13px}
+.ef input,.ef select{width:100%;min-height:36px;padding:6px 10px;border:1px solid var(--sedge);border-radius:8px;background:#fff;font-size:14px}
+.eh{font-size:12px;color:var(--smut)}
+.erow{display:flex;flex-wrap:wrap;gap:12px}
+.eerr{margin:0;min-height:1.2em;color:#8c1d3f;font-weight:700;font-size:13px}
+.sdlg footer{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:12px 18px 16px;border-top:1px solid var(--sline);margin-top:8px}
+.sdlg footer .sp{flex:1}

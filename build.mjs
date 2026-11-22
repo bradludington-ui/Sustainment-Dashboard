@@ -13,14 +13,35 @@
 // Teams by downloading it: a page that needed a second file beside it would open broken.
 import { readFileSync, writeFileSync, renameSync, mkdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import vm from 'node:vm';
 import { dirname, join } from 'node:path';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const SRC = join(HERE, 'src');
 export const OUT = join(HERE, 'sustainment-dashboard.html');
 export const OUT_MAINT = join(HERE, 'maintainer', 'sustainment-dashboard-maintainer.html');
-const JS_FILES = ['tools.js', 'catalog.js', 'app.js'];
-const JS_MAINT = ['tools.js', 'catalog.js', 'sources.js', 'maint.js', 'app.js'];
+const JS_FILES = ['tools.js', 'sources.js', 'maint.js', 'app.js'];
+// fenced: in the maintainer copy only. The team copy is the maintainer copy with every fence cut out (teamOf), and the
+// maintainer page's own Save team copy cuts the same fences the same way, so the two can never drift apart.
+const FENCED = new Set(['sources.js', 'maint.js']);
+export const FENCE_A = '/*@' + 'MAINT>*/', FENCE_B = '/*<' + 'MAINT@*/';
+const TITLE_M = '<title>Sustainment Dashboard (maintainer)</title>', TITLE_T = '<title>Sustainment Dashboard</title>';
+export function teamOf(html) {
+  let out = '', i = 0, j;
+  while ((j = html.indexOf(FENCE_A, i)) >= 0) {
+    const k = html.indexOf(FENCE_B, j);
+    if (k < 0) throw new Error('a maintainer fence is opened and never closed');
+    out += html.slice(i, j); i = k + FENCE_B.length;
+  }
+  return (out + html.slice(i)).replace(TITLE_M, TITLE_T);
+}
+// the catalog a fresh build starts with, as the data block the page reads (every < escaped, so a link or note holding
+// "</script>" can never end the block early)
+export function catalogJson() {
+  const ctx = {};
+  vm.runInNewContext(readFileSync(join(SRC, 'catalog.js'), 'utf8') + '\n;this.CATALOG = CATALOG;', ctx);
+  return JSON.stringify(ctx.CATALOG).replace(/</g, '\\u003c');
+}
 
 // ring, satellite and four tiles, colours baked (a favicon has no page colour to inherit). Every character a URL or the
 // HTML parser would read differently is percent-encoded.
@@ -31,18 +52,20 @@ const FAVICON_SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 10
 const favicon = () => 'data:image/svg+xml,' + FAVICON_SVG.replace(/[%#<>"'&\s]/g, c => '%' + c.charCodeAt(0).toString(16).toUpperCase().padStart(2, '0'));
 
 export function assemble({ maintainer = false } = {}) {
+  if (!maintainer) return teamOf(assemble({ maintainer: true }));
   const shell = readFileSync(join(SRC, 'shell.html'), 'utf8');
-  for (const m of ['/*@CSS@*/', '/*@JS@*/', '/*@FAVICON@*/']) if (!shell.includes(m)) throw new Error('shell.html has lost its ' + m + ' marker');
+  for (const m of ['/*@CSS@*/', '/*@JS@*/', '/*@FAVICON@*/', '/*@CATALOG@*/']) if (!shell.includes(m)) throw new Error('shell.html has lost its ' + m + ' marker');
   const css = readFileSync(join(SRC, 'style.css'), 'utf8').replace(/\s*$/, '');
-  const js = (maintainer ? JS_MAINT : JS_FILES).map(f => {
+  const js = JS_FILES.map(f => {
     const code = readFileSync(join(SRC, f), 'utf8');
     if (/<\/script/i.test(code)) throw new Error(f + ' contains a closing script tag; write it as <\\/script in a string');
-    return '// ===== ' + f + ' =====\n' + code.replace(/\s*$/, '\n');
+    const body = '// ===== ' + f + ' =====\n' + code.replace(/\s*$/, '\n');
+    if (code.includes(FENCE_A) || code.includes(FENCE_B)) throw new Error(f + ' contains a fence marker; build it from pieces');
+    return FENCED.has(f) ? FENCE_A + '\n' + body + FENCE_B + '\n' : body;
   }).join('\n').replace(/\s*$/, '');
   // function replacements, so a "$&" in the sources is never read as a replacement pattern
-  let page = shell;
-  if (maintainer) page = page.replace('<title>Sustainment Dashboard</title>', '<title>Sustainment Dashboard (maintainer)</title>');
-  return page.replace('/*@FAVICON@*/', () => favicon()).replace('/*@CSS@*/', () => css).replace('/*@JS@*/', () => js);
+  const page = shell.replace(TITLE_T, TITLE_M);
+  return page.replace('/*@CATALOG@*/', () => catalogJson()).replace('/*@FAVICON@*/', () => favicon()).replace('/*@CSS@*/', () => css).replace('/*@JS@*/', () => js);
 }
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
