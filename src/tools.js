@@ -16,8 +16,7 @@
 //             Only https:// links are accepted.
 //   icon      'orbit', 'apex', 'contract', 'budget', 'chart', 'doc' or 'grid'
 //
-// `links` is the short list of other dashboards in Teams (ones not built here), shown under Quick links.
-// Each is { name, note, url }.
+// Links to other things (trackers, briefings, references, other dashboards) go in catalog.js, not here.
 //
 // `npm run check` refuses an entry with an unknown area, status or icon, a repeated id, or a link that is not https.
 
@@ -78,7 +77,4 @@ const DASH = {
     },
   ],
 
-  links: [
-    // { name: 'Example team dashboard', note: 'Owned by …', url: 'https://…' },
-  ],
 };

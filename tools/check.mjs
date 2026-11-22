@@ -51,9 +51,33 @@ if (D) {
     if (typeof t.url !== 'string' || !okUrl(t.url)) fail(who + ': url must be an https:// link, or "" until there is one');
     if ((t.features || []).length > 4) fail(who + ': at most four features (the card shows four)');
   }
-  for (const l of D.links || []) {
-    if (!l.name) fail('a quick link has no name');
-    if (typeof l.url !== 'string' || !okUrl(l.url)) fail('quick link "' + l.name + '": url must be an https:// link or ""');
+  if (D.links) fail('src/tools.js still has `links`: links belong in src/catalog.js');
+}
+
+// 2b. the catalog
+const cx = {};
+try { vm.runInNewContext(readFileSync(join(ROOT, 'src/catalog.js'), 'utf8') + '\n;this.CATALOG = CATALOG;', cx); } catch (e) { fail('src/catalog.js does not run: ' + e.message); }
+const C = cx.CATALOG;
+if (C) {
+  const TYPES = ['excel', 'powerpoint', 'word', 'pdf', 'sharepoint', 'teams', 'folder', 'web'];
+  const okUrl = u => u === '' || /^https:\/\/[^\s"'<>]+$/i.test(String(u).trim());
+  const cids = new Set();
+  for (const k of C.categories || []) {
+    if (!/^[a-z0-9-]+$/.test(k.id || '') || !k.name) fail('catalog category needs an id (lower case, digits, hyphens) and a name: ' + JSON.stringify(k));
+    if (cids.has(k.id)) fail('catalog category id used twice: ' + k.id);
+    cids.add(k.id);
+  }
+  const keys = new Set();
+  for (const c of C.items || []) {
+    const who = 'catalog link ' + JSON.stringify(c.name || '?');
+    if (!c.name) fail(who + ': no name');
+    const key = c.id || String(c.name || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+    if (c.id && !/^[a-z0-9-]+$/.test(c.id)) fail(who + ': id must be lower case letters, digits and hyphens');
+    if (keys.has(key)) fail(who + ': the same name (or id) is used twice; pins could not tell them apart');
+    keys.add(key);
+    if (!cids.has(c.category)) fail(who + ': category "' + c.category + '" is not in categories (' + [...cids].join(', ') + ')');
+    if (!TYPES.includes(c.type)) fail(who + ': type "' + c.type + '" is not one of ' + TYPES.join(', '));
+    if (typeof c.url !== 'string' || !okUrl(c.url)) fail(who + ': url must be an https:// link, or "" until there is one');
   }
 }
 
@@ -86,5 +110,5 @@ if (sx.SOURCES && D) {
 }
 
 if (fails.length) { console.error('CHECK FAILED\n - ' + fails.join('\n - ')); process.exit(1); }
-console.log('check passed: ' + (D.tools || []).length + ' tools, ' + (D.areas || []).length + ' areas, ' + (D.links || []).length + ' quick links; '
+console.log('check passed: ' + (D.tools || []).length + ' tools, ' + (D.areas || []).length + ' areas, ' + ((C && C.items) || []).length + ' catalog links; '
   + Object.keys(sx.SOURCES || {}).length + ' sources in the maintainer copy, none in the team copy');

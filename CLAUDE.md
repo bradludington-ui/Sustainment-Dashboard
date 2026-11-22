@@ -19,8 +19,11 @@ dashboard, and more). See README.md for what it is and how it is updated.
   readily be able to download the latest versions. So the links are LEFT OUT of the team copy, never hidden in it
   (View Source would show them). `npm run check` fails on any mention of GitHub in the team copy, comments included:
   never write a GitHub address, or the panel's code, into tools.js, app.js, style.css or shell.html.
-- **The tool list is the one place a tool is described.** `src/tools.js`. The page draws everything from it; a new
-  field goes there and in `tools/check.mjs` together.
+- **Two lists, one home each.** `src/tools.js` describes the tools built here; `src/catalog.js` is the catalog of links
+  to everything else (trackers, briefings, references, other dashboards). Nothing is listed in both. A new field goes in
+  its list and in `tools/check.mjs` together.
+- **Office links open in the desktop app** through Office's own form (`ms-excel:ofe|u|<https address>`, and
+  `ms-powerpoint`, `ms-word`), with a Browser button beside it. Brad asked for Office files never to open in preview.
 - **No data, ever.** The hub links to tools; it never holds budget or contract figures. Tools that hold data live in
   their own files and follow ORBIT's rule: the repo holds the program, never a populated copy. A tool built in this repo
   goes in a folder of its own (`contract-tracker/`, ...) with its own build and checks, and gets a card in `tools.js`.

@@ -3,7 +3,7 @@
 The entry point for every sustainment tool: one page with a card per tool, grouped by area, searchable, that opens
 each tool from its link in Teams. It wears the same Harbor colours, navy menu and ring-and-satellite marks as ORBIT and APEX.
 
-**It holds no data.** It is a list of links. It remembers, in your browser only, which tools you opened lately.
+**It holds no data.** It is a list of links. It remembers, in your browser only, which links you pinned and opened lately.
 
 ## Using it
 
@@ -22,7 +22,19 @@ Everything the page shows comes from one file, **`src/tools.js`**. Its header ex
 3. `npm run check` makes sure the list is well formed and the page loads nothing from outside itself.
 4. Commit both files and upload the new `sustainment-dashboard.html` to Teams over the old one.
 
-Other dashboards in Teams (not built here) go in `links`, and show under **Quick links**.
+## The catalog: links to everything else
+
+Trackers, briefings, references, team sites and other dashboards live in **`src/catalog.js`**, under **Catalog** in
+the menu. Each link is one line with a name, a short note, a category and a type (`excel`, `powerpoint`, `word`, `pdf`,
+`sharepoint`, `teams`, `folder`, `web`). Paste its address from Teams or SharePoint (**⋯ › Copy link**) into `url`.
+
+- **Excel, PowerPoint and Word links open in the desktop app** (**Open in Excel**), not the browser preview; **Browser**
+  opens the web version. Other links open in a new tab.
+- **Pins:** anyone can pin the links they use most. Pins sit at the top of the catalog and the home page, and are kept
+  in that person's browser only.
+- **Search** (the box at the top) looks through the tools and the catalog together.
+
+Categories are at the top of the file; add one there to get a new section and menu entry.
 
 ## Your maintainer copy: the latest versions
 
@@ -43,11 +55,12 @@ so the panel says what is on Teams.
 | `sustainment-dashboard.html` | The page people open (the team copy). Built; never edit it by hand. |
 | `maintainer/sustainment-dashboard-maintainer.html` | Your copy, with Settings. Built. |
 | `src/tools.js` | The tool list. The file you edit. |
-| `src/app.js` | Draws the page from the list. |
+| `src/catalog.js` | The catalog of links. The other file you edit. |
+| `src/app.js` | Draws the page from the two lists. |
 | `src/sources.js` | Where each tool's latest version is on GitHub. Maintainer copy only. |
 | `src/maint.js` | The Settings panel. Maintainer copy only. |
 | `src/style.css` | The look (Harbor, as ORBIT and APEX). |
 | `src/shell.html` | The page around them, with its Content-Security-Policy. |
 | `build.mjs` | Puts the four together into one file. |
 | `tools/check.mjs` | `npm run check`. |
-| `tools/shoot.mjs` | `npm run shoot -- out.png [--links] [--full] [--width N]`: a screenshot in Chromium. |
+| `tools/shoot.mjs` | `npm run shoot -- out.png [--links] [--catalog] [--maint [--settings]] [--full] [--width N]`: a screenshot in Chromium. |

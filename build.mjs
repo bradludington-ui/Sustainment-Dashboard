@@ -8,7 +8,7 @@
 // src/sources.js and src/maint.js added: a Settings gear and the GitHub download links. The links are left OUT of the team copy, never
 // hidden in it, because anything in a file can be read with View Source. tools/check.mjs fails if one gets in.
 //
-// src/shell.html has three markers: /*@CSS@*/ takes src/style.css, /*@JS@*/ takes src/tools.js then src/app.js, and
+// src/shell.html has three markers: /*@CSS@*/ takes src/style.css, /*@JS@*/ takes src/tools.js, src/catalog.js then src/app.js, and
 // /*@FAVICON@*/ takes the hub's mark as a data: address. Nothing else is changed. One file, because it is opened from
 // Teams by downloading it: a page that needed a second file beside it would open broken.
 import { readFileSync, writeFileSync, renameSync, mkdirSync } from 'node:fs';
@@ -19,8 +19,8 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 const SRC = join(HERE, 'src');
 export const OUT = join(HERE, 'sustainment-dashboard.html');
 export const OUT_MAINT = join(HERE, 'maintainer', 'sustainment-dashboard-maintainer.html');
-const JS_FILES = ['tools.js', 'app.js'];
-const JS_MAINT = ['tools.js', 'sources.js', 'maint.js', 'app.js'];
+const JS_FILES = ['tools.js', 'catalog.js', 'app.js'];
+const JS_MAINT = ['tools.js', 'catalog.js', 'sources.js', 'maint.js', 'app.js'];
 
 // ring, satellite and four tiles, colours baked (a favicon has no page colour to inherit). Every character a URL or the
 // HTML parser would read differently is percent-encoded.

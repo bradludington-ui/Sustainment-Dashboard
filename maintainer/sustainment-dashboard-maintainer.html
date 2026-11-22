@@ -73,6 +73,7 @@ main:focus{outline:none}
 
 /* the status filter */
 .bar{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:0 0 6px}
+section.area + .bar{margin-top:18px}
 .bar .lbl{font-weight:700;color:var(--slink);margin-right:2px}
 .chip{display:inline-flex;align-items:center;gap:6px;min-height:30px;padding:3px 12px;border:1px solid var(--sedge);border-radius:999px;background:var(--card);cursor:pointer}
 .chip:hover{background:var(--ssel)}
@@ -167,6 +168,37 @@ footer.foot{margin:28px 0 0;padding-top:10px;border-top:1px solid var(--sline);c
 .spath code{font-size:12px}
 .err{color:#8c1d3f;font-weight:600}
 @media (max-width:640px){.srow{grid-template-columns:46px 1fr}.srow > :nth-child(3),.spath{grid-column:1 / -1}.gear span{display:none}}
+
+/* the catalog: dense rows, a file-type tile, the actions at the right */
+.hero.slim{padding:16px 22px}
+.hero.slim h2{font-size:21px}
+.stat.go{font:inherit;text-align:left;cursor:pointer;color:inherit}
+.stat.go:hover{background:rgba(234,240,246,.2)}
+.stat.go:focus-visible{outline-color:var(--onAcc)}
+section.area h3 .hn{display:inline-block;margin-left:6px;padding:0 8px;border-radius:999px;background:var(--ssel);color:var(--acc);font-size:12px;vertical-align:2px}
+section.area h3 svg{width:16px;height:16px;margin-right:6px;vertical-align:-2px;color:var(--steal)}
+.clist{list-style:none;margin:0;padding:0;border:1px solid var(--cardLine);border-radius:var(--r);background:var(--card);box-shadow:var(--shadow);overflow:hidden}
+.crow{display:grid;grid-template-columns:38px minmax(0,1fr) auto auto;align-items:center;gap:6px 14px;padding:9px 14px;border-top:1px solid #dde2e8}
+.crow:first-child{border-top:0}
+.crow:hover{background:#edf1f6}
+.ctype{display:grid;place-items:center;width:34px;height:34px;border-radius:8px;color:#fff;font-weight:800;font-size:14px;letter-spacing:-.02em}
+.t-excel{background:#1d6f42}.t-powerpoint{background:#b7472a}.t-word{background:#2b579a}.t-pdf{background:#8c1d3f;font-size:10px}
+.t-sharepoint{background:#036c70}.t-teams{background:#4b53bc}.t-folder{background:#627185}.t-web{background:var(--steal)}
+.cmain{display:flex;flex-direction:column;min-width:0}
+.cname{font-weight:700;color:var(--slink);text-decoration:none;overflow-wrap:anywhere}
+a.cname:hover{text-decoration:underline}
+.crow.off .cname{color:var(--sink)}
+.cmeta{font-size:12.5px;color:var(--smut);overflow-wrap:anywhere}
+.ctag{font-size:12px;color:var(--smut);padding:1px 8px;border:1px solid var(--sline);border-radius:999px;white-space:nowrap}
+.cacts{display:flex;align-items:center;gap:6px;justify-content:flex-end}
+.btn.sm{min-height:30px;padding:4px 11px;font-size:13px}
+.btn.ico-only{width:32px;padding:0;justify-content:center}
+.btn.pin[aria-pressed=true]{color:#a36a00;border-color:#a36a00;background:#fff6dc}
+@media (max-width:760px){
+  .crow{grid-template-columns:34px minmax(0,1fr);padding:10px 12px}
+  .ctag{display:none}
+  .cacts{grid-column:1 / -1;justify-content:flex-start}
+}
 </style>
 </head>
 <body>
@@ -192,8 +224,7 @@ footer.foot{margin:28px 0 0;padding-top:10px;border-top:1px solid var(--sline);c
 //             Only https:// links are accepted.
 //   icon      'orbit', 'apex', 'contract', 'budget', 'chart', 'doc' or 'grid'
 //
-// `links` is the short list of other dashboards in Teams (ones not built here), shown under Quick links.
-// Each is { name, note, url }.
+// Links to other things (trackers, briefings, references, other dashboards) go in catalog.js, not here.
 //
 // `npm run check` refuses an entry with an unknown area, status or icon, a repeated id, or a link that is not https.
 
@@ -254,8 +285,39 @@ const DASH = {
     },
   ],
 
-  links: [
-    // { name: 'Example team dashboard', note: 'Owned by …', url: 'https://…' },
+};
+
+// ===== catalog.js =====
+// THE CATALOG: links to the things used around the office (trackers, briefings, references, sites). This is the file
+// you edit to add, change or remove a link; tools.js is only for the tools themselves.
+//
+// To add a link, copy one entry in `items`, change it, and run `npm run build`.
+//
+//   name      what the row says
+//   note      one short line: what it is, who owns it, how often it changes (optional)
+//   category  one of the `categories` ids below: the group the row sits in
+//   type      'excel', 'powerpoint', 'word', 'pdf', 'sharepoint', 'teams', 'folder' or 'web'
+//             An Excel, PowerPoint or Word link gets "Open in Excel" (or PowerPoint, Word), which opens the file straight
+//             in the desktop app, and "Browser" for the web version. Every other type opens in a new tab.
+//   url       the link. In Teams or SharePoint: the file's ⋯ menu › Copy link, and paste it here.
+//             Leave it '' until there is one: the row says "Link not set". Only https:// links are accepted.
+//   id        optional: a short name in lower case. Pins and "recently opened" follow it; without one they follow the
+//             name, so renaming a link without an id unpins it.
+//
+// `npm run check` refuses an unknown category or type, a repeated name, and a link that is not https.
+
+const CATALOG = {
+  categories: [
+    { id: 'trackers',  name: 'Trackers',             blurb: 'Working spreadsheets the office keeps current.' },
+    { id: 'briefings', name: 'Briefings & slides',   blurb: 'Recurring reviews and the decks behind them.' },
+    { id: 'reference', name: 'Reference',            blurb: 'Guidance, templates and policy.' },
+    { id: 'sites',     name: 'Sites & dashboards',   blurb: 'Team sites, channels and other dashboards in Teams.' },
+  ],
+
+  items: [
+    { name: 'ATR/BTR Tracker',          note: 'Above- and below-threshold reprogramming actions.', category: 'trackers',  type: 'excel',      url: '' },
+    { name: 'Funds Control Tracker',    note: '',                                                    category: 'trackers',  type: 'excel',      url: '' },
+    { name: 'Execution Review Slides',  note: '',                                                    category: 'briefings', type: 'powerpoint', url: '' },
   ],
 };
 
@@ -328,8 +390,9 @@ function openSettings() {
 
 // ===== app.js =====
 'use strict';
-// Sustainment Dashboard: draws the tool list (tools.js) as a page. Nothing here holds data; the page reads DASH and
-// remembers, in this browser only, which menu entry was chosen and which tools were opened lately.
+// Sustainment Dashboard: draws the tool list (tools.js) and the catalog of links (catalog.js) as a page. Nothing here
+// holds data; the page reads DASH and CATALOG and remembers, in this browser only, which menu entry was chosen, which
+// links are pinned and what was opened lately.
 
 const STATUS = {
   live:    { label: 'Live',           cls: 'st-live',    order: 0 },
@@ -385,21 +448,44 @@ const UI = {
   open: glyph('<path d="M14 4h6v6M20 4l-9 9"/><path d="M19 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h5"/>'),
   download: glyph('<path d="M12 4v11M7 10l5 5 5-5"/><path d="M5 20h14"/>'),
   gear: glyph('<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>'),
+  pin: glyph('<path d="m12 3 2.6 5.6 6 .7-4.5 4.1 1.2 6L12 16.4 6.7 19.4l1.2-6L3.4 9.3l6-.7z"/>'),
+  pinOn: '<svg viewBox="0 0 24 24" aria-hidden="true" fill="currentColor" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="m12 3 2.6 5.6 6 .7-4.5 4.1 1.2 6L12 16.4 6.7 19.4l1.2-6L3.4 9.3l6-.7z"/></svg>',
   copy: glyph('<rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a1 1 0 0 1 1-1h10"/>'),
 };
 const iconOf = t => (ICONS[t.icon] || ICONS.grid)();
 
+// ---- the catalog's file types. Office files open in their desktop app through Office's own link form
+// (ms-excel:ofe|u|<https address>), which also keeps them out of the browser's preview; "Browser" is the web version.
+const TYPES = {
+  excel:      { label: 'Excel',      mark: 'X',   app: 'ms-excel',      appName: 'Excel' },
+  powerpoint: { label: 'PowerPoint', mark: 'P',   app: 'ms-powerpoint', appName: 'PowerPoint' },
+  word:       { label: 'Word',       mark: 'W',   app: 'ms-word',       appName: 'Word' },
+  pdf:        { label: 'PDF',        mark: 'PDF' },
+  sharepoint: { label: 'SharePoint', mark: 'S' },
+  teams:      { label: 'Teams',      mark: 'T' },
+  folder:     { label: 'Folder',     mark: '▤' },
+  web:        { label: 'Web',        mark: '◎' },
+};
+
 // ---- state
 const S = {
-  view: store.get('view', 'all'),   // 'all' | an area id | 'links'
+  view: String(store.get('view', 'all')),   // 'all' | an area id | 'other' | 'cat' | 'cat:<category id>'
   status: store.get('status', 'all'),
+  ctype: store.get('ctype', 'all'),
   q: '',
 };
 const areas = () => DASH.areas || [];
 const tools = () => (DASH.tools || []).slice();
 const areaOf = t => areas().find(a => a.id === t.area);
-if (S.view !== 'all' && S.view !== 'links' && !areas().some(a => a.id === S.view)) S.view = 'all';
+const cats = () => (typeof CATALOG !== 'undefined' && CATALOG.categories) || [];
+const citems = () => ((typeof CATALOG !== 'undefined' && CATALOG.items) || []).slice();
+const catOf = c => cats().find(k => k.id === c.category);
+const ckey = c => 'c:' + (c.id || String(c.name || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''));
+const viewOk = v => v === 'all' || v === 'other' || v === 'cat' || areas().some(a => a.id === v) || (v.startsWith('cat:') && cats().some(k => 'cat:' + k.id === v));
+if (!viewOk(S.view)) S.view = 'all';
 if (S.status !== 'all' && !STATUS[S.status]) S.status = 'all';
+if (S.ctype !== 'all' && !TYPES[S.ctype]) S.ctype = 'all';
+const pins = () => { const p = store.get('pins', []); return Array.isArray(p) ? p : []; };
 
 function matches(t, q) {
   if (!q) return true;
@@ -411,6 +497,11 @@ function hl(text) {
   const s = esc(text);
   const words = S.q.trim().split(/\s+/).filter(w => w.length > 1).map(w => esc(w).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
   return words.length ? s.replace(new RegExp('(' + words.join('|') + ')', 'gi'), '<mark>$1</mark>') : s;
+}
+function cmatches(c, q) {
+  if (!q) return true;
+  const hay = [c.name, c.note, (catOf(c) || {}).name, (TYPES[c.type] || {}).label].join(' ').toLowerCase();
+  return q.toLowerCase().split(/\s+/).filter(Boolean).every(w => hay.includes(w));
 }
 function visible() {
   return tools().filter(t => (S.status === 'all' || t.status === S.status) && matches(t, S.q))
@@ -447,7 +538,8 @@ function railHtml() {
   h += '<h2>Areas</h2>' + areas().map(a => btn(a.id, a.name, all.filter(t => t.area === a.id).length, AREA_COLOR[a.id] || 'var(--a-other)')).join('');
   const orphans = all.filter(t => !areaOf(t)).length;
   if (orphans) h += btn('other', 'Other', orphans, 'var(--a-other)');
-  if ((DASH.links || []).length) h += '<h2>Elsewhere in Teams</h2>' + btn('links', 'Quick links', DASH.links.length);
+  h += '<h2>Catalog</h2>' + btn('cat', 'All links', citems().length)
+    + cats().map(k => btn('cat:' + k.id, k.name, citems().filter(c => c.category === k.id).length)).join('');
   return h;
 }
 
@@ -456,32 +548,87 @@ function heroHtml() {
   const n = k => all.filter(t => t.status === k).length;
   const stat = (v, l) => '<div class="stat"><b>' + v + '</b><span>' + esc(l) + '</span></div>';
   return '<div class="hero"><div><h2>' + esc(DASH.title) + '</h2><p>' + esc(DASH.subtitle) + '. Pick a tool to open it in a new tab.</p></div>'
-    + '<div class="stats">' + stat(n('live'), 'live') + stat(n('dev'), 'in development') + (n('planned') ? stat(n('planned'), 'planned') : '') + '</div></div>';
+    + '<div class="stats">' + stat(n('live'), 'live') + stat(n('dev'), 'in development') + (n('planned') ? stat(n('planned'), 'planned') : '')
+    + '<button type="button" class="stat go" data-view="cat"><b>' + citems().length + '</b><span>links in the catalog ›</span></button></div></div>';
 }
 
 function recentHtml() {
   const ids = store.get('recent', []);
-  const list = ids.map(id => tools().find(t => t.id === id)).filter(t => t && linkOk(t.url)).slice(0, 5);
+  const list = (Array.isArray(ids) ? ids : []).map(id => {
+    if (String(id).startsWith('c:')) {
+      const c = citems().find(x => ckey(x) === id);
+      if (!c || !linkOk(c.url)) return null;
+      const T = TYPES[c.type] || {};
+      return T.app ? { id, name: c.name, href: T.app + ':ofe|u|' + c.url.trim(), tab: false } : { id, name: c.name, href: c.url.trim(), tab: true };
+    }
+    const t = tools().find(x => x.id === id);
+    return t && linkOk(t.url) ? { id, name: t.name, href: t.url.trim(), tab: true } : null;
+  }).filter(Boolean).slice(0, 6);
   if (!list.length) return '';
-  return '<div class="recent"><span class="lbl">Recently opened</span>' + list.map(t =>
-    '<a href="' + esc(t.url.trim()) + '" target="_blank" rel="noopener noreferrer" data-open="' + esc(t.id) + '">' + esc(t.name) + '</a>').join('') + '</div>';
+  return '<div class="recent"><span class="lbl">Recently opened</span>' + list.map(r =>
+    '<a href="' + esc(r.href) + '"' + (r.tab ? ' target="_blank" rel="noopener noreferrer"' : '') + ' data-open="' + esc(r.id) + '">' + esc(r.name) + '</a>').join('') + '</div>';
 }
 
-function linksHtml() {
-  const L = (DASH.links || []).filter(l => !S.q || [l.name, l.note].join(' ').toLowerCase().includes(S.q.toLowerCase()));
-  if (!L.length) return '<div class="empty">No quick links match.</div>';
-  return '<section class="area"><header><h3>Quick links</h3><p>Other dashboards in Teams.</p></header><div class="links">'
-    + L.map(l => linkOk(l.url)
-      ? '<a href="' + esc(l.url.trim()) + '" target="_blank" rel="noopener noreferrer"><b>' + hl(l.name) + '</b>' + (l.note ? '<span>' + hl(l.note) + '</span>' : '') + '</a>'
-      : '<div class="nolink"><b>' + hl(l.name) + '</b><span>Link not set</span></div>').join('') + '</div></section>';
+// ---- the catalog rows
+function crow(c) {
+  const T = TYPES[c.type] || TYPES.web, ok = linkOk(c.url), k = ckey(c), pinned = pins().includes(k);
+  const url = ok ? c.url.trim() : '';
+  const tab = ' target="_blank" rel="noopener noreferrer"';
+  let name, acts;
+  if (!ok) {
+    name = '<span class="cname">' + hl(c.name) + '</span>';
+    acts = '<span class="btn sm" aria-disabled="true" role="link" title="This link has not been added to the catalog yet">Link not set</span>';
+  } else if (T.app) {
+    // the desktop app: no new tab (the browser hands the address to Office and stays where it is)
+    const app = T.app + ':ofe|u|' + url;
+    name = '<a class="cname" href="' + esc(app) + '" data-open="' + esc(k) + '">' + hl(c.name) + '</a>';
+    acts = '<a class="btn sm pri" href="' + esc(app) + '" data-open="' + esc(k) + '">Open in ' + esc(T.appName) + '</a>'
+      + '<a class="btn sm" href="' + esc(url) + '"' + tab + ' data-open="' + esc(k) + '">Browser<span class="vh"> (opens in a new tab)</span></a>';
+  } else {
+    name = '<a class="cname" href="' + esc(url) + '"' + tab + ' data-open="' + esc(k) + '">' + hl(c.name) + '</a>';
+    acts = '<a class="btn sm pri" href="' + esc(url) + '"' + tab + ' data-open="' + esc(k) + '">' + UI.open + 'Open<span class="vh"> (opens in a new tab)</span></a>';
+  }
+  if (ok) acts += '<button type="button" class="btn sm ico-only" data-ccopy="' + esc(k) + '" title="Copy link" aria-label="Copy the link to ' + esc(c.name) + '">' + UI.copy + '</button>';
+  acts += '<button type="button" class="btn sm ico-only pin" data-pin="' + esc(k) + '" aria-pressed="' + pinned + '" title="' + (pinned ? 'Unpin' : 'Pin to the top') + '" aria-label="Pin ' + esc(c.name) + '">' + (pinned ? UI.pinOn : UI.pin) + '</button>';
+  return '<li class="crow' + (ok ? '' : ' off') + '"><span class="ctype t-' + esc(TYPES[c.type] ? c.type : 'web') + '" title="' + esc(T.label) + '" aria-hidden="true">' + esc(T.mark) + '</span>'
+    + '<div class="cmain">' + name + '<span class="cmeta"><span class="vh">' + esc(T.label) + '. </span>' + (c.note ? hl(c.note) : '') + '</span></div>'
+    + '<span class="ctag">' + esc(T.label) + '</span><div class="cacts">' + acts + '</div></li>';
+}
+function clist(list) { return '<ul class="clist">' + list.map(crow).join('') + '</ul>'; }
+function pinnedHtml() {
+  const P = pins(), list = citems().filter(c => P.includes(ckey(c))).sort((a, b) => P.indexOf(ckey(a)) - P.indexOf(ckey(b)));
+  if (!list.length) return '';
+  return '<section class="area"><header><h3>' + UI.pinOn + 'Pinned links</h3><p>Pinned in this browser. Pin or unpin any link in the catalog.</p></header>' + clist(list) + '</section>';
+}
+function catalogHtml() {
+  const one = S.view.startsWith('cat:') ? S.view.slice(4) : '';
+  const all = citems().filter(c => !one || c.category === one);
+  const vis = all.filter(c => (S.ctype === 'all' || c.type === S.ctype) && cmatches(c, S.q));
+  const chip = (v, l) => '<button type="button" class="chip" data-ctype="' + v + '" aria-pressed="' + (S.ctype === v) + '">' + esc(l) + '</button>';
+  const present = Object.keys(TYPES).filter(k => all.some(c => c.type === k));
+  let h = '<div class="hero slim"><div><h2>Catalog</h2><p>Links to the trackers, briefings and references used around the office. Office files open in their desktop app.</p></div>'
+    + '<div class="stats"><div class="stat"><b>' + citems().length + '</b><span>links</span></div><div class="stat"><b>' + cats().length + '</b><span>categories</span></div></div></div>';
+  if (!one && !S.q) h += pinnedHtml();
+  h += '<div class="bar" role="group" aria-label="Show by type"><span class="lbl">Type</span>' + chip('all', 'All') + present.map(k => chip(k, TYPES[k].label)).join('')
+    + '<span class="shown" role="status">' + vis.length + ' of ' + all.length + ' links' + (S.q ? ' matching “' + esc(S.q) + '”' : '') + '</span></div>';
+  const groups = one ? cats().filter(k => k.id === one) : cats().concat([{ id: '', name: 'Other', blurb: '' }]);
+  let any = false;
+  for (const g of groups) {
+    const list = vis.filter(c => g.id ? c.category === g.id : !catOf(c)).sort((a, b) => String(a.name).localeCompare(String(b.name)));
+    if (!list.length) continue;
+    any = true;
+    h += '<section class="area"><header><h3>' + esc(g.name) + ' <span class="hn">' + list.length + '</span></h3>' + (g.blurb ? '<p>' + esc(g.blurb) + '</p>' : '') + '</header>' + clist(list) + '</section>';
+  }
+  if (!any) h += '<div class="empty">' + (S.q ? 'No link matches “' + esc(S.q) + '”. Try fewer words, or clear the search (Esc).' : 'No links here yet. Add them to src/catalog.js.') + '</div>';
+  return h;
 }
 
 function mainHtml() {
-  if (S.view === 'links') return linksHtml();
+  if (S.view === 'cat' || S.view.startsWith('cat:')) return catalogHtml();
   const vis = visible();
   const chip = (v, l) => '<button type="button" class="chip" data-status="' + v + '" aria-pressed="' + (S.status === v) + '">' + esc(l) + '</button>';
   let h = '';
-  if (S.view === 'all' && !S.q) h += heroHtml() + recentHtml();
+  if (S.view === 'all' && !S.q) h += heroHtml() + recentHtml() + pinnedHtml();
   const inView = vis.filter(t => S.view === 'all' || (S.view === 'other' ? !areaOf(t) : t.area === S.view));
   h += '<div class="bar" role="group" aria-label="Show by status"><span class="lbl">Show</span>' + chip('all', 'All')
     + Object.keys(STATUS).filter(k => tools().some(t => t.status === k)).map(k => chip(k, STATUS[k].label)).join('')
@@ -495,14 +642,16 @@ function mainHtml() {
     h += '<section class="area" aria-labelledby="a-' + esc(a.id) + '"><header><h3 id="a-' + esc(a.id) + '"><span class="sw" style="background:' + (AREA_COLOR[a.id] || 'var(--a-other)') + '"></span>'
       + esc(a.name) + '</h3>' + (a.blurb ? '<p>' + esc(a.blurb) + '</p>' : '') + '</header><div class="grid">' + list.map(card).join('') + '</div></section>';
   }
-  if (!any) h += '<div class="empty">' + (S.q ? 'No tool matches “' + esc(S.q) + '”. Try fewer words, or clear the search (Esc).' : 'No tools here yet.') + '</div>';
-  if (S.view === 'all' && !S.q && (DASH.links || []).length) h += linksHtml();
+  // a search from the home view looks through the catalog too
+  const cm = S.view === 'all' && S.q ? citems().filter(c => cmatches(c, S.q)) : [];
+  if (!any && !cm.length) h += '<div class="empty">' + (S.q ? 'Nothing matches “' + esc(S.q) + '”. Try fewer words, or clear the search (Esc).' : 'No tools here yet.') + '</div>';
+  if (cm.length) h += '<section class="area"><header><h3>From the catalog <span class="hn">' + cm.length + '</span></h3></header>' + clist(cm) + '</section>';
   return h;
 }
 
 function draw() {
   document.getElementById('rail').innerHTML = railHtml();
-  document.getElementById('main').innerHTML = mainHtml() + '<footer class="foot">To add a tool or change a link, edit <code>src/tools.js</code> in the sustainment-dashboard repository and rebuild. This page holds no data.</footer>';
+  document.getElementById('main').innerHTML = mainHtml() + '<footer class="foot">To add a tool or change a link, edit <code>src/tools.js</code>; to add a link, <code>src/catalog.js</code>. Then rebuild. This page holds no data.</footer>';
 }
 
 function toast(msg) {
@@ -513,6 +662,17 @@ function toast(msg) {
 function remember(id) {
   const ids = store.get('recent', []).filter(x => x !== id);
   ids.unshift(id); store.set('recent', ids.slice(0, 8));
+}
+async function copyCat(k) {
+  const c = citems().find(x => ckey(x) === k);
+  if (c && linkOk(c.url)) return copyLink({ name: c.name, url: c.url });
+}
+function togglePin(k) {
+  const P = pins(), i = P.indexOf(k);
+  if (i >= 0) P.splice(i, 1); else P.push(k);
+  store.set('pins', P); draw();
+  document.querySelector('[data-pin="' + CSS.escape(k) + '"]')?.focus();
+  toast(i >= 0 ? 'Unpinned' : 'Pinned to the top');
 }
 async function copyLink(t) {
   const u = t.url.trim();
@@ -528,11 +688,11 @@ const HAS_MAINT = typeof openSettings === 'function';
 function boot() {
   document.getElementById('app').innerHTML =
     '<header class="top"><h1 class="brand">' + ICONS.hub() + '<span>' + esc(DASH.title) + '</span><span class="bs">' + esc(DASH.subtitle) + '</span></h1>'
-    + '<div class="search" role="search">' + UI.search + '<label class="vh" for="q">Search the tools</label>'
-    + '<input id="q" type="search" placeholder="Search tools" autocomplete="off"><kbd>/</kbd></div>'
+    + '<div class="search" role="search">' + UI.search + '<label class="vh" for="q">Search the tools and the catalog</label>'
+    + '<input id="q" type="search" placeholder="Search tools and links" autocomplete="off"><kbd>/</kbd></div>'
     + (HAS_MAINT ? '<button type="button" class="gear" id="gear" aria-haspopup="dialog" title="Settings: latest versions">' + UI.gear + '<span>Settings</span></button>' : '')
     + '</header>' + (HAS_MAINT ? '<div class="maint" role="note">Maintainer copy: keep this file to yourself. The team opens sustainment-dashboard.html.</div>' : '')
-    + '<div class="shell"><nav class="rail" id="rail" aria-label="Areas"></nav><main id="main" tabindex="-1"></main></div>'
+    + '<div class="shell"><nav class="rail" id="rail" aria-label="Tools and catalog"></nav><main id="main" tabindex="-1"></main></div>'
     + '<div class="toast" id="toast" role="status" hidden></div>'
     + (HAS_MAINT ? '<dialog class="sdlg" id="sdlg" aria-labelledby="sdlgT"></dialog>' : '');
   const q = document.getElementById('q');
@@ -547,6 +707,12 @@ function boot() {
     if (v) { S.view = v.dataset.view; store.set('view', S.view); draw(); document.querySelector('[data-view="' + CSS.escape(S.view) + '"]')?.focus(); return; }
     const s = e.target.closest('[data-status]');
     if (s) { S.status = s.dataset.status; store.set('status', S.status); draw(); document.querySelector('[data-status="' + CSS.escape(S.status) + '"]')?.focus(); return; }
+    const ct = e.target.closest('[data-ctype]');
+    if (ct) { S.ctype = ct.dataset.ctype; store.set('ctype', S.ctype); draw(); document.querySelector('[data-ctype="' + CSS.escape(S.ctype) + '"]')?.focus(); return; }
+    const pn = e.target.closest('[data-pin]');
+    if (pn) { togglePin(pn.dataset.pin); return; }
+    const cc = e.target.closest('[data-ccopy]');
+    if (cc) { copyCat(cc.dataset.ccopy); return; }
     const c = e.target.closest('[data-copy]');
     if (c) { const t = tools().find(x => x.id === c.dataset.copy); if (t) copyLink(t); return; }
     const o = e.target.closest('[data-open]');
