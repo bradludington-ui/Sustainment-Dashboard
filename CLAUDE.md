@@ -46,6 +46,10 @@ dashboard, and more). See README.md for what it is and how it is updated.
 - **The layout is D** (Brad, 22 Nov 2026, from four mock-ups): a welcome band with the search and the tabs at its foot,
   pinned tiles, a slim tools row, then the catalog as section cards in columns. Tabs are buttons with `aria-pressed`,
   never ARIA tabs. `KIND` in app.js maps Files, Websites and Forms to link types; a section with `tab: true` is a tab.
+- **A link may carry a date** (`YYYY-MM-DD`, read by `dateOk()`; one that is not a real day is set aside, said, and
+  refused in the editor). Dated links sort newest first after the undated ones (`linkOrder`), and a section's own tab
+  splits into Schedule & resources, Upcoming and Past sessions once any of its links is dated (`sectionTab`). "Upcoming"
+  includes today, in the reader's own time zone (`today()`), never UTC's.
 - **`npm test`** drives the page in Chromium end to end (`tools/editor-test.mjs`); run it with `npm run check` before a
   commit that touches app.js or maint.js.
 - Check appearance with `npm run shoot` at 1440, 1366 and a phone width (420) before calling a change done

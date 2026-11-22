@@ -73,6 +73,7 @@ const TYPES = {
   word:       { label: 'Word',       mark: 'W',   app: 'ms-word',       appName: 'Word' },
   pdf:        { label: 'PDF',        mark: 'PDF' },
   form:       { label: 'Form',       mark: 'F' },
+  video:      { label: 'Recording',  mark: '▶' },
   sharepoint: { label: 'SharePoint', mark: 'S' },
   teams:      { label: 'Teams',      mark: 'T' },
   folder:     { label: 'Folder',     mark: '▤' },
@@ -100,6 +101,9 @@ function normCatalog(raw) {
     const name = str(c && c.name);
     if (!name) { fixed.push('a link with no name was left out'); continue; }
     const it = { name, note: str(c.note), category: str(c.category), type: str(c.type), url: str(c.url) };
+    // a date (a training session, a board, a deadline): YYYY-MM-DD, or nothing. One that is not a real day is set aside.
+    const d = str(c.date);
+    if (d && dateOk(d)) it.date = d; else if (d) fixed.push('“' + name + '”: its date “' + d.slice(0, 20) + '” is not a date and was set aside');
     if (c.id) it.id = str(c.id).toLowerCase().replace(/[^a-z0-9-]+/g, '-');
     if (!TYPES[it.type]) { fixed.push('“' + name + '”: type “' + it.type + '” read as Web'); it.type = 'web'; }
     if (it.url && !linkOk(it.url)) { fixed.push('“' + name + '”: its link is not https:// and was set aside (' + it.url.slice(0, 80) + ')'); it.url = ''; }
@@ -109,6 +113,18 @@ function normCatalog(raw) {
   out.fixed = fixed;
   return out;
 }
+function dateOk(d) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(d || '');
+  if (!m) return false;
+  const t = new Date(Date.UTC(+m[1], +m[2] - 1, +m[3]));
+  return t.getUTCFullYear() === +m[1] && t.getUTCMonth() === +m[2] - 1 && t.getUTCDate() === +m[3];
+}
+const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const dateTxt = d => { const [y, m, dd] = d.split('-'); return +dd + ' ' + MON[+m - 1] + ' ' + y; };
+// today in the reader's own time zone, as YYYY-MM-DD, so "upcoming" turns into "past" at their midnight, not UTC's
+const today = () => { const t = new Date(); return t.getFullYear() + '-' + String(t.getMonth() + 1).padStart(2, '0') + '-' + String(t.getDate()).padStart(2, '0'); };
+// within a section: undated links by name first (a schedule, a reference), then dated ones newest first
+const linkOrder = (a, b) => (!!a.date - !!b.date) || (a.date && b.date && b.date.localeCompare(a.date)) || String(a.name).localeCompare(String(b.name));
 function readCatalog() {
   try { const el = document.getElementById('catData'); return normCatalog(JSON.parse(el ? el.textContent : 'null') || {}); }
   catch (e) { const c = normCatalog({}); c.fixed.push('the catalog in this file could not be read (' + e.message + ')'); return c; }
@@ -122,13 +138,13 @@ const editing = () => !!HOOK('editing');
 // tabs along its foot, then pinned tiles, the tools and the catalog as section cards.
 //   tab: 'all' | 'tools' | 'files' | 'web' | 'forms' | 's:<section id>' (a section marked as a tab, e.g. Air Force, Navy)
 const KIND = {   // the tabs that gather links by what they are, whatever section they sit in
-  files: { label: 'Files',    types: ['excel', 'powerpoint', 'word', 'pdf', 'folder'] },
+  files: { label: 'Files',    types: ['excel', 'powerpoint', 'word', 'pdf', 'video', 'folder'] },
   web:   { label: 'Websites', types: ['web', 'sharepoint', 'teams'] },
   forms: { label: 'Forms',    types: ['form'] },
 };
 // each section's colour: the starting sections have their own; any other takes one from the palette by its id, so it
 // keeps its colour when sections are reordered. White text clears 4.5:1 on every one.
-const SEC_COLOR = { trackers: '#1d6f42', briefings: '#b7472a', forms: '#7a4a08', websites: '#055795', af: '#25394d', navy: '#1f3f73', reference: '#5d6878', sites: '#036c70' };
+const SEC_COLOR = { trackers: '#1d6f42', briefings: '#b7472a', forms: '#7a4a08', websites: '#055795', af: '#25394d', navy: '#1f3f73', training: '#5b3a8c', reference: '#5d6878', sites: '#036c70' };
 const SEC_PALETTE = ['#055795', '#1d6f42', '#7a4a08', '#8c1d3f', '#036c70', '#4b53bc', '#25394d', '#5d6878', '#b7472a'];
 const secColor = id => SEC_COLOR[id] || SEC_PALETTE[[...String(id)].reduce((h, ch) => (h * 31 + ch.charCodeAt(0)) >>> 0, 7) % SEC_PALETTE.length];
 const S = {
@@ -170,7 +186,7 @@ function hl(text) {
 }
 function cmatches(c, q) {
   if (!q) return true;
-  const hay = [c.name, c.note, (catOf(c) || {}).name, (TYPES[c.type] || {}).label].join(' ').toLowerCase();
+  const hay = [c.name, c.note, (catOf(c) || {}).name, (TYPES[c.type] || {}).label, c.date ? c.date + ' ' + dateTxt(c.date) : ''].join(' ').toLowerCase();
   return q.toLowerCase().split(/\s+/).filter(Boolean).every(w => hay.includes(w));
 }
 const byStatus = (a, b) => ((STATUS[a.status] || { order: 9 }).order - (STATUS[b.status] || { order: 9 }).order);
@@ -240,16 +256,17 @@ function lrow(c) {
   const name = h ? aOpen(c, k, 'cname', hl(c.name), ' title="' + esc(T.app ? 'Opens in ' + T.app + ' desktop app' : 'Opens in a new tab') + '"') : '<span class="cname nolink" title="Link not set yet">' + hl(c.name) + '</span>';
   const web = h && h.web ? '<a class="lweb" href="' + esc(h.web) + '" target="_blank" rel="noopener noreferrer" data-open="' + esc(k) + '" title="Open in the browser instead">Browser<span class="vh"> version of ' + esc(c.name) + ' (opens in a new tab)</span></a>' : '';
   return '<li class="lrow' + (h ? '' : ' off') + '">' + typeTile(c) + '<span class="lmain">' + name
-    + '<small>' + (c.note ? hl(c.note) : esc(T.label)) + (h ? '' : ' · link not set') + '</small></span>'
+    + '<small>' + (c.date ? '<span class="ldate' + (c.date >= today() ? ' up' : '') + '">' + esc(dateTxt(c.date)) + '</span>' : '')
+    + (c.note ? hl(c.note) : c.date ? '' : esc(T.label)) + (h ? '' : ' · link not set') + '</small></span>'
     + '<span class="lacts">' + web + (h ? '<button type="button" class="lic" data-ccopy="' + esc(k) + '" title="Copy link" aria-label="Copy the link to ' + esc(c.name) + '">' + UI.copy + '</button>' : '')
     + HOOK('rowActs', c, k) + pinBtn(c, k) + '</span></li>';
 }
-function secCard(g, list) {
-  const color = g.id ? secColor(g.id) : '#5d6878';
-  return '<section class="scard" style="--sc:' + color + '" aria-labelledby="sc-' + esc(g.id || 'other') + '"><header><h3 id="sc-' + esc(g.id || 'other') + '">' + esc(g.name) + '</h3>'
-    + '<span class="sn">' + list.length + ' link' + (list.length === 1 ? '' : 's') + '</span>' + (g.id ? HOOK('sectionActs', g) : '') + '</header>'
+function secCard(g, list, o = {}) {
+  const color = o.color || (g.id ? secColor(g.id) : '#5d6878'), hid = 'sc-' + esc(o.sub || g.id || 'other');
+  return '<section class="scard" style="--sc:' + color + '" aria-labelledby="' + hid + '"><header><h3 id="' + hid + '">' + esc(g.name) + '</h3>'
+    + '<span class="sn">' + list.length + ' link' + (list.length === 1 ? '' : 's') + '</span>' + (o.acts !== undefined ? o.acts : g.id ? HOOK('sectionActs', g) : '') + '</header>'
     + (g.blurb && (editing() || !list.length) ? '<p class="sblurb">' + esc(g.blurb) + '</p>' : '')
-    + (list.length ? '<ul class="llist">' + list.map(lrow).join('') + '</ul>' : '<p class="sempty">No links in this section yet.</p>') + '</section>';
+    + (list.length ? '<ul class="llist">' + list.map(lrow).join('') + '</ul>' : '<p class="sempty">' + esc(o.empty || 'No links in this section yet.') + '</p>') + '</section>';
 }
 function catalogCards(links, opts = {}) {
   const ed = editing() && !S.q;
@@ -257,7 +274,7 @@ function catalogCards(links, opts = {}) {
   let h = '', n = 0;
   for (const g of groups) {
     if (opts.only && g.id !== opts.only) continue;
-    const list = links.filter(c => g.id ? c.category === g.id : !catOf(c)).sort((a, b) => String(a.name).localeCompare(String(b.name)));
+    const list = links.filter(c => g.id ? c.category === g.id : !catOf(c)).sort(linkOrder);
     if (!list.length && !(ed && g.id && !opts.byKind) && !(opts.only && g.id === opts.only)) continue;
     n++; h += secCard(g, list);
   }
@@ -308,6 +325,22 @@ function searchHtml() {
   return h;
 }
 
+// a section's own tab. One holding dated links (Training: sessions) is split into what to open now, what is coming and
+// what has happened; a section with no dates is its one card.
+function sectionTab(id) {
+  const g = cats().find(k => k.id === id), links = tabLinks('s:' + id);
+  if (!g || !links.some(c => c.date)) return catalogCards(links, { only: id });
+  const now = today();
+  const res = links.filter(c => !c.date).sort(linkOrder);
+  const up = links.filter(c => c.date && c.date >= now).sort((a, b) => a.date.localeCompare(b.date));
+  const past = links.filter(c => c.date && c.date < now).sort((a, b) => b.date.localeCompare(a.date));
+  const part = (sub, title, list, empty) => secCard({ id: '', name: title, blurb: '' }, list, { sub, color: secColor(id), empty, acts: sub === 'res' ? HOOK('sectionActs', g) : '' });
+  return '<h2 class="sh">' + esc(g.name) + '<small>' + links.length + ' link' + (links.length === 1 ? '' : 's') + '</small></h2><div class="mason tri">'
+    + part('res', 'Schedule & resources', res, 'Links without a date go here: the schedule, sign-ups, materials.')
+    + part('up', 'Upcoming', up, 'No sessions scheduled. A link dated today or later shows here.')
+    + part('past', 'Past sessions', past, 'No past sessions yet.') + '</div>';
+}
+
 function mainHtml() {
   if (S.q) return searchHtml();
   if (S.tab === 'tools') return toolsTab();
@@ -316,7 +349,7 @@ function mainHtml() {
     return '<h2 class="sh">' + esc(KIND[S.tab].label) + '<small>' + ls.length + ' link' + (ls.length === 1 ? '' : 's') + ', by section</small></h2>'
       + (catalogCards(ls, { byKind: true }) || '<div class="empty">No ' + esc(KIND[S.tab].label.toLowerCase()) + ' in the catalog yet.</div>');
   }
-  if (S.tab.startsWith('s:')) return catalogCards(tabLinks(S.tab), { only: S.tab.slice(2) });
+  if (S.tab.startsWith('s:')) return sectionTab(S.tab.slice(2));
   // Everything
   const T = tools().slice().sort(byStatus);
   return recentHtml() + pinnedHtml()

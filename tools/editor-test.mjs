@@ -99,6 +99,42 @@ await r.goto('file://' + D + 'fresh.html'); await r.click('[data-e="toggle"]');
 await r.setInputFiles('#impFile', D + 'm2.html');
 await r.waitForTimeout(300);
 ok((await r.$$eval('#main .lrow .cname', a => a.map(x => x.textContent))).includes('DTS'), 'Import links from a copy carries the links into a new build');
+// training: dated sessions split the Training tab into the schedule, upcoming and past
+{
+  const ctx4 = await b.newContext({ acceptDownloads: true }); const t = await ctx4.newPage(); t.on('pageerror', e => errs.push('training: ' + e.message)); t.on('dialog', d => d.accept());
+  await t.addInitScript(() => { delete window.showSaveFilePicker; });   // as above: Save downloads, which the test can read
+  copyFileSync(ROOT + 'maintainer/sustainment-dashboard-maintainer.html', D + 'tr.html');
+  await t.goto('file://' + D + 'tr.html'); await t.click('[data-e="toggle"]');
+  const iso = n => { const d = new Date(); d.setDate(d.getDate() + n); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
+  const add = async (name, url, date, note) => { await t.click('[data-e="addLink"][data-s="training"]'); await t.fill('#eName', name); await t.fill('#eUrl', url); if (note) await t.fill('#eNote', note); if (date) await t.fill('#eDate', date); await t.click('[data-e="saveLink"]'); };
+  await add('Spend plan basics', 'https://x.sharepoint.com/sites/t/stream.aspx?id=1', iso(-40), 'Topic: building the spend plan');
+  await add('CR cash needs', 'https://x.sharepoint.com/sites/t/b.pptx', iso(-5), 'Topic: CR cash windows');
+  await add('FYDP drills', 'https://x.sharepoint.com/sites/t/c', iso(10), 'Topic: the five-year plan');
+  await add('Today session', 'https://x.sharepoint.com/sites/t/d', iso(0), '');
+  ok(await t.$eval('[data-e="editLink"][data-k="c:spend-plan-basics"]', () => true).catch(() => false), 'dated links are added');
+  await t.click('[data-e="toggle"]');
+  await t.click('.tabs [data-tab="s:training"]');
+  const part = id => t.$$eval('#' + id + ' ~ * .cname, section:has(> header #' + id + ') .cname', a => a.map(x => x.textContent));
+  ok(JSON.stringify(await part('sc-res')) === JSON.stringify(['Training schedule']), 'Training tab: the schedule under Schedule & resources');
+  ok(JSON.stringify(await part('sc-up')) === JSON.stringify(['Today session', 'FYDP drills']), 'Training tab: upcoming, soonest first, today counted as upcoming');
+  ok(JSON.stringify(await part('sc-past')) === JSON.stringify(['CR cash needs', 'Spend plan basics']), 'Training tab: past sessions, newest first');
+  ok(await t.$eval('section:has(> header #sc-past) .lrow:first-child .ldate', e => /\d{4}$/.test(e.textContent)), 'a session shows its date');
+  ok((await t.$$eval('section:has(> header #sc-past) .lrow .ctype', a => a.map(x => x.title))).includes('Recording'), 'a Stream link is guessed as a Recording');
+  await t.click('.tabs [data-tab="all"]'); await t.fill('#q', 'cash windows'); await t.dispatchEvent('#q', 'input');
+  ok((await t.$$eval('#main .lrow .cname', a => a.map(x => x.textContent))).includes('CR cash needs'), 'search finds a session by its topic');
+  await t.fill('#q', ''); await t.dispatchEvent('#q', 'input');
+  await t.click('.tabs [data-tab="files"]');
+  ok((await t.$$eval('#main .lrow .cname', a => a.map(x => x.textContent))).includes('Spend plan basics'), 'a recording is listed under Files');
+  // the date survives Save team copy, and a date that is not a day is refused
+  const [dt] = await Promise.all([t.waitForEvent('download'), t.click('[data-e="saveTeam"]')]);
+  await dt.saveAs(D + 'tr-team.html');
+  ok(readFileSync(D + 'tr-team.html', 'utf8').includes('"date":"' + iso(10) + '"'), 'the saved team copy carries the dates');
+  await t.click('[data-e="toggle"]'); await t.click('.tabs [data-tab="all"]');
+  await t.click('[data-e="addLink"][data-s="training"]'); await t.fill('#eName', 'Bad date');
+  await t.evaluate(() => { const i = document.getElementById('eDate'); i.type = 'text'; i.value = '2026-02-30'; });
+  await t.click('[data-e="saveLink"]');
+  ok(/not a date/.test(await t.$eval('#eErr', e => e.textContent)), 'a date that is not a day is refused');
+}
 console.log('page errors:', errs.length ? errs : 'none'); await b.close();
 if (failed || errs.length) { console.error(failed + ' FAILING, ' + errs.length + ' page error(s)'); process.exit(1); }
 console.log('ALL PASSED');

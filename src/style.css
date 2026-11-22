@@ -249,3 +249,9 @@ a.cname:hover{text-decoration:underline}
   .fav{grid-template-columns:repeat(auto-fill,minmax(104px,1fr))}
   .gear span{display:none}
 }
+/* dated links (training sessions): the date leads the line, upcoming ones in the accent */
+.ldate{display:inline-block;margin-right:6px;padding:0 6px;border-radius:5px;background:var(--spanel2);color:var(--sink);font-weight:700;font-size:11.5px;font-variant-numeric:tabular-nums}
+.ldate.up{background:var(--ssel);color:var(--slink)}
+.t-video{background:#6b3fa0;font-size:12px}
+.mason.tri{columns:3 300px}
+.ef.dt{flex:0 0 170px}

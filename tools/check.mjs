@@ -59,7 +59,7 @@ const cx = {};
 try { vm.runInNewContext(readFileSync(join(ROOT, 'src/catalog.js'), 'utf8') + '\n;this.CATALOG = CATALOG;', cx); } catch (e) { fail('src/catalog.js does not run: ' + e.message); }
 const C = cx.CATALOG;
 if (C) {
-  const TYPES = ['excel', 'powerpoint', 'word', 'pdf', 'form', 'sharepoint', 'teams', 'folder', 'web'];
+  const TYPES = ['excel', 'powerpoint', 'word', 'pdf', 'form', 'video', 'sharepoint', 'teams', 'folder', 'web'];
   const okUrl = u => u === '' || /^https:\/\/[^\s"'<>]+$/i.test(String(u).trim());
   const cids = new Set();
   for (const k of C.categories || []) {
@@ -80,6 +80,7 @@ if (C) {
     if (!cids.has(c.category)) fail(who + ': category "' + c.category + '" is not in categories (' + [...cids].join(', ') + ')');
     if (!TYPES.includes(c.type)) fail(who + ': type "' + c.type + '" is not one of ' + TYPES.join(', '));
     if (typeof c.url !== 'string' || !okUrl(c.url)) fail(who + ': url must be an https:// link, or "" until there is one');
+    if (c.date !== undefined && !/^\d{4}-\d{2}-\d{2}$/.test(c.date)) fail(who + ': date must be YYYY-MM-DD');
   }
 }
 

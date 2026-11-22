@@ -27,7 +27,12 @@ Everything the page shows comes from one file, **`src/tools.js`**. Its header ex
 
 On the page under **Catalog**: trackers, briefings, forms, job websites, Air Force and Navy employee links, references
 and team sites, each a section card. The **Files**, **Websites** and **Forms** tabs gather links by what they are,
-whatever section they sit in; a section marked **Show as a tab** (Air Force and Navy to start) gets a tab of its own. Excel, PowerPoint and Word links open in the desktop app (**Open in Excel**), not the
+whatever section they sit in; a section marked **Show as a tab** (Air Force, Navy and Training to start) gets a tab of its own.
+
+**Training** holds the schedule and every session. Give a session's link a **date** (and its topic as the note): the
+Training tab then splits into **Schedule & resources** (links with no date, such as the schedule itself), **Upcoming**
+(soonest first, today included) and **Past sessions** (newest first). Any section works the same way once its links
+carry dates, and a session recording can use the **Recording** type. Excel, PowerPoint and Word links open in the desktop app (**Open in Excel**), not the
 browser preview; **Browser** opens the web version; everything else opens in a new tab. Anyone can **pin** the links they
 use most (kept in their own browser), and the search box covers tools and the catalog together.
 

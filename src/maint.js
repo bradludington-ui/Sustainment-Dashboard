@@ -187,7 +187,8 @@ function linkForm(key, presetCat) {
       'In Teams or SharePoint: the file’s ⋯ menu › Copy link. Leave it empty if you do not have it yet.')
     + '<div class="erow">' + field('eCat', 'Section', '<select id="eCat">' + catOpts + '</select>')
     + field('eType', 'Type', '<select id="eType">' + typeOpts + '</select>', 'Excel, PowerPoint and Word open in the desktop app.') + '</div>'
-    + field('eNote', 'Note', '<input id="eNote" maxlength="200" value="' + esc(v.note) + '" placeholder="What it is, who owns it (optional)" autocomplete="off">')
+    + '<div class="erow">' + field('eNote', 'Note', '<input id="eNote" maxlength="200" value="' + esc(v.note) + '" placeholder="What it is, who owns it; for a session, its topic (optional)" autocomplete="off">')
+    + '<div class="ef dt">' + '<label for="eDate">Date</label><input id="eDate" type="date" value="' + esc(v.date || '') + '"><div class="eh">Optional: a session or deadline.</div></div></div>'
     + '<p class="eerr" id="eErr" role="alert"></p></div>'
     + '<footer>' + (c ? '<button type="button" class="btn danger" data-e="delLink" data-k="' + esc(key) + '">Delete</button>' : '')
     + '<span class="sp"></span><button type="button" class="btn" data-e="close">Cancel</button>'
@@ -204,6 +205,7 @@ function guessType(u) {
   if (/\.ppt[xm]?(\?|$)|\/:p:\//.test(u)) return 'powerpoint';
   if (/\.doc[xm]?(\?|$)|\/:w:\//.test(u)) return 'word';
   if (/\.pdf(\?|$)|\/:b:\//.test(u)) return 'pdf';
+  if (/\.(mp4|mov|wmv|m4v)(\?|$)|\/stream\.aspx|\/:v:\//.test(u)) return 'video';
   if (/teams\.microsoft\.(com|us)/.test(u)) return 'teams';
   if (/\.sharepoint\.(com|us)|\.sharepoint-mil\.us/.test(u)) return 'sharepoint';
   return '';
@@ -216,6 +218,9 @@ function saveLink(key) {
   const others = citems().filter(x => ckey(x) !== key);
   if (others.some(x => x.name.toLowerCase() === name.toLowerCase())) { err.textContent = 'Another link already has that name. Give this one a name of its own.'; document.getElementById('eName').focus(); return; }
   const rec = { name, note: g('eNote'), category: g('eCat'), type: g('eType'), url };
+  const date = g('eDate');
+  if (date && !dateOk(date)) { err.textContent = 'That is not a date. Pick one from the calendar, or leave it empty.'; document.getElementById('eDate').focus(); return; }
+  if (date) rec.date = date;
   if (key) {
     const i = CATALOG.items.findIndex(x => ckey(x) === key);
     // a link keeps its key (pins and recently opened follow it) however it is renamed
