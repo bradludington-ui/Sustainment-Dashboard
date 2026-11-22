@@ -65,6 +65,8 @@ if (C) {
   for (const k of C.categories || []) {
     if (!/^[a-z0-9-]+$/.test(k.id || '') || !k.name) fail('catalog category needs an id (lower case, digits, hyphens) and a name: ' + JSON.stringify(k));
     if (cids.has(k.id)) fail('catalog category id used twice: ' + k.id);
+    if (k.tab !== undefined && typeof k.tab !== 'boolean') fail('catalog section ' + k.id + ': tab must be true or false');
+    if (k.tabName !== undefined && (typeof k.tabName !== 'string' || k.tabName.length > 24)) fail('catalog section ' + k.id + ': tabName must be text of at most 24 characters');
     cids.add(k.id);
   }
   const keys = new Set();

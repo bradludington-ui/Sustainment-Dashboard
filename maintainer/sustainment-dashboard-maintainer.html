@@ -31,49 +31,21 @@ body{margin:0;background:var(--sbg);color:var(--sink);font:14px/1.45 Calibri,Car
 button,input{font:inherit;color:inherit}
 
 /* the top bar */
-header.top{position:sticky;top:0;z-index:30;display:flex;flex-wrap:wrap;align-items:center;gap:10px 18px;padding:10px 20px;
-  background:var(--sbg2);border-bottom:1px solid var(--sline);box-shadow:0 1px 3px rgba(24,32,41,.2)}
+header.top{display:flex;flex-wrap:wrap;align-items:center;gap:10px 18px;padding:12px 28px}
 .brand{display:flex;align-items:center;gap:10px;margin:0;font-size:20px;font-weight:800;letter-spacing:.02em;white-space:nowrap}
 .brand svg{width:34px;height:34px;flex:none;color:var(--sink);--mark-accent:var(--steal)}
-.brand .bs{font-size:13px;font-weight:400;letter-spacing:0;color:var(--smut);padding-left:10px;border-left:1px solid var(--sedge)}
-.search{flex:1 1 280px;max-width:520px;margin-left:auto;position:relative}
-.search input{width:100%;padding:8px 12px 8px 36px;border:1px solid var(--sedge);border-radius:999px;background:#fff;font-size:14px}
-.search input::placeholder{color:#5d6878}
-.search svg{position:absolute;left:12px;top:50%;width:16px;height:16px;transform:translateY(-50%);color:var(--smut);pointer-events:none}
-.search kbd{position:absolute;right:10px;top:50%;transform:translateY(-50%);font:12px/1 Calibri,Carlito,"Segoe UI",Arial,sans-serif;
   padding:3px 7px;border:1px solid var(--sline);border-radius:5px;background:var(--spanel);color:var(--smut)}
-.search input:focus + kbd,.search input:not(:placeholder-shown) + kbd{display:none}
 
-/* the shell: the menu down the left, the tools beside it */
-.shell{display:flex;align-items:flex-start;min-width:0}
-nav.rail{flex:0 0 220px;position:sticky;top:76px;margin:14px 0 14px 0;padding:12px 8px;background:var(--acc);color:var(--onAcc);
   border-radius:0 var(--r) var(--r) 0;max-height:calc(100vh - 90px);overflow-y:auto}
-nav.rail h2{margin:12px 10px 6px;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#b8c6d6}
-nav.rail h2:first-child{margin-top:2px}
-nav.rail button{display:flex;align-items:center;gap:8px;width:100%;min-height:34px;padding:6px 10px;border:0;border-radius:8px;
   background:none;color:var(--onAcc);text-align:left;cursor:pointer}
-nav.rail button:hover{background:var(--accHover);color:#fff}
-nav.rail button[aria-pressed=true]{background:var(--onAcc);color:var(--acc);font-weight:700;box-shadow:inset 3px 0 0 var(--steal)}
-nav.rail button .n{margin-left:auto;min-width:24px;padding:0 7px;border-radius:999px;background:rgba(234,240,246,.16);font-size:12px;text-align:center}
-nav.rail button[aria-pressed=true] .n{background:var(--ssel);color:var(--acc)}
-nav.rail .dot{width:9px;height:9px;border-radius:50%;flex:none}
-nav.rail :focus-visible{outline-color:var(--onAcc);outline-offset:-3px}
-main{flex:1 1 0;min-width:0;padding:18px 24px 40px}
 main:focus{outline:none}
 
-/* the welcome band */
-.hero{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px 24px;margin:0 0 18px;padding:20px 24px;
   border-radius:var(--r);background:linear-gradient(120deg,var(--acc) 0%,#2f4b66 60%,#355a7d 100%);color:var(--onAcc);box-shadow:var(--shadow)}
 .hero h2{margin:0 0 4px;font-size:24px;font-weight:700;color:#fff}
 .hero p{margin:0;color:#cfdae6;max-width:60ch}
-.stats{display:flex;flex-wrap:wrap;gap:10px}
-.stat{min-width:104px;padding:8px 14px;border-radius:10px;background:rgba(234,240,246,.1);border:1px solid rgba(234,240,246,.22)}
-.stat b{display:block;font-size:22px;line-height:1.1;color:#fff;font-variant-numeric:tabular-nums}
-.stat span{font-size:12px;color:#cfdae6}
 
 /* the status filter */
 .bar{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:0 0 6px}
-section.area + .bar{margin-top:18px}
 .bar .lbl{font-weight:700;color:var(--slink);margin-right:2px}
 .chip{display:inline-flex;align-items:center;gap:6px;min-height:30px;padding:3px 12px;border:1px solid var(--sedge);border-radius:999px;background:var(--card);cursor:pointer}
 .chip:hover{background:var(--ssel)}
@@ -118,33 +90,15 @@ section.area > header p{margin:0;color:var(--smut);font-size:13px}
 .hint{font-size:12px;color:var(--smut)}
 mark{background:#fff0b3;color:inherit;border-radius:2px;padding:0 1px}
 
-/* recently opened, and quick links */
-.recent{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:0 0 14px}
-.recent .lbl{font-weight:700;color:var(--slink)}
-.recent a{display:inline-flex;align-items:center;gap:6px;min-height:30px;padding:3px 12px;border-radius:999px;background:var(--card);
   border:1px solid var(--cardLine);color:var(--sink);text-decoration:none;font-weight:600}
-.recent a:hover{background:var(--ssel)}
-.links{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,280px),1fr));gap:10px}
-.links a,.links .nolink{display:flex;flex-direction:column;padding:10px 14px;border-radius:10px;background:var(--card);border:1px solid var(--cardLine);color:var(--sink);text-decoration:none}
-.links a:hover{background:var(--ssel)}
-.links b{color:var(--slink)}
-.links span{font-size:12px;color:var(--smut)}
 .empty{margin:28px 0;padding:24px;border:2px dashed var(--sline);border-radius:var(--r);text-align:center;color:var(--smut)}
 .toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);z-index:50;padding:8px 16px;border-radius:8px;background:var(--acc);color:var(--onAcc);
   box-shadow:var(--shadowUp);font-weight:600}
 .toast[hidden]{display:none}
 footer.foot{margin:28px 0 0;padding-top:10px;border-top:1px solid var(--sline);color:var(--smut);font-size:12px}
 
-@media (max-width:900px){
-  .shell{display:block}
-  nav.rail{position:static;display:flex;flex-wrap:wrap;gap:4px;margin:10px 12px 0;border-radius:var(--r);max-height:none}
-  nav.rail h2{display:none}
-  nav.rail button{width:auto}
-  main{padding:14px 12px 32px}
-  .brand .bs{display:none}
-}
 @media (prefers-reduced-motion:reduce){.card{transition:none}.card:hover{transform:none}}
-@media print{nav.rail,.search,.bar,.recent,.skip{display:none}.card{break-inside:avoid;box-shadow:none}}
+@media print{.sbox,.tabs,.bar,.recent,.skip,.maint{display:none}.card{break-inside:avoid;box-shadow:none}}
 
 /* the maintainer copy only (src/maint.js present): the gear, the note under the bar, and the Settings panel. Styles only; the team copy never draws them */
 .gear{display:inline-flex;align-items:center;gap:6px;min-height:36px;padding:6px 12px;border:1px solid var(--sedge);border-radius:999px;background:#fff;cursor:pointer;font-weight:600}
@@ -170,35 +124,10 @@ footer.foot{margin:28px 0 0;padding-top:10px;border-top:1px solid var(--sline);c
 @media (max-width:640px){.srow{grid-template-columns:46px 1fr}.srow > :nth-child(3),.spath{grid-column:1 / -1}.gear span{display:none}}
 
 /* the catalog: dense rows, a file-type tile, the actions at the right */
-.hero.slim{padding:16px 22px}
-.hero.slim h2{font-size:21px}
-.stat.go{font:inherit;text-align:left;cursor:pointer;color:inherit}
-.stat.go:hover{background:rgba(234,240,246,.2)}
-.stat.go:focus-visible{outline-color:var(--onAcc)}
-section.area h3 .hn{display:inline-block;margin-left:6px;padding:0 8px;border-radius:999px;background:var(--ssel);color:var(--acc);font-size:12px;vertical-align:2px}
-section.area h3 svg{width:16px;height:16px;margin-right:6px;vertical-align:-2px;color:var(--steal)}
-.clist{list-style:none;margin:0;padding:0;border:1px solid var(--cardLine);border-radius:var(--r);background:var(--card);box-shadow:var(--shadow);overflow:hidden}
-.crow{display:grid;grid-template-columns:38px minmax(0,1fr) auto auto;align-items:center;gap:6px 14px;padding:9px 14px;border-top:1px solid #dde2e8}
-.crow:first-child{border-top:0}
-.crow:hover{background:#edf1f6}
-.ctype{display:grid;place-items:center;width:34px;height:34px;border-radius:8px;color:#fff;font-weight:800;font-size:14px;letter-spacing:-.02em}
 .t-excel{background:#1d6f42}.t-powerpoint{background:#b7472a}.t-word{background:#2b579a}.t-pdf{background:#8c1d3f;font-size:10px}
 .t-sharepoint{background:#036c70}.t-teams{background:#4b53bc}.t-folder{background:#627185}.t-web{background:var(--steal)}
-.cmain{display:flex;flex-direction:column;min-width:0}
-.cname{font-weight:700;color:var(--slink);text-decoration:none;overflow-wrap:anywhere}
-a.cname:hover{text-decoration:underline}
-.crow.off .cname{color:var(--sink)}
-.cmeta{font-size:12.5px;color:var(--smut);overflow-wrap:anywhere}
-.ctag{font-size:12px;color:var(--smut);padding:1px 8px;border:1px solid var(--sline);border-radius:999px;white-space:nowrap}
-.cacts{display:flex;align-items:center;gap:6px;justify-content:flex-end}
 .btn.sm{min-height:30px;padding:4px 11px;font-size:13px}
 .btn.ico-only{width:32px;padding:0;justify-content:center}
-.btn.pin[aria-pressed=true]{color:#a36a00;border-color:#a36a00;background:#fff6dc}
-@media (max-width:760px){
-  .crow{grid-template-columns:34px minmax(0,1fr);padding:10px 12px}
-  .ctag{display:none}
-  .cacts{grid-column:1 / -1;justify-content:flex-start}
-}
 
 /* the maintainer bar and the catalog editor (maintainer copy only; the team copy never draws them) */
 .maint{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;padding:6px 20px;background:var(--ochreBg);border-bottom:1px solid var(--ochre);color:#5c3706;font-size:13px;font-weight:700}
@@ -215,8 +144,6 @@ a.cname:hover{text-decoration:underline}
 .btn.danger:hover{background:#f7e3ea}
 .btn.pri.danger{background:#8c1d3f;color:#fff}
 .btn[disabled]{opacity:.45;cursor:default}
-section.area > header .sacts2{display:flex;flex-wrap:wrap;gap:6px;margin-left:auto}
-.empty.sm{margin:0;padding:14px;font-size:13px}
 .addsec{margin:18px 0 0}
 .eform{display:flex;flex-direction:column;gap:12px;padding:16px 18px 4px}
 .ef{display:flex;flex-direction:column;gap:4px;min-width:0;flex:1}
@@ -227,12 +154,116 @@ section.area > header .sacts2{display:flex;flex-wrap:wrap;gap:6px;margin-left:au
 .eerr{margin:0;min-height:1.2em;color:#8c1d3f;font-weight:700;font-size:13px}
 .sdlg footer{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:12px 18px 16px;border-top:1px solid var(--sline);margin-top:8px}
 .sdlg footer .sp{flex:1}
+
+/* ---- layout D (Brad, 22 Nov 2026): the welcome band with the search and the tabs, pinned tiles, tools, section cards */
+header.top .tr{margin-left:auto;display:flex;align-items:center;gap:8px}
+.tpill{display:inline-flex;align-items:center;gap:6px;min-height:32px;padding:4px 12px;border-radius:999px;background:var(--sbg2);border:1px solid var(--sline);color:var(--sink);text-decoration:none;font-size:13px}
+.tpill:hover{background:var(--ssel)}
+.tpill svg{width:14px;height:14px;color:#a36a00}
+.hero2{margin:0 28px;padding:28px 32px 0;border-radius:18px;text-align:center;color:var(--onAcc);
+  background:radial-gradient(circle at 85% 0%,#3b6a94 0%,var(--acc) 58%);box-shadow:var(--shadow)}
+.hero2 h2{margin:0;font-size:28px;line-height:1.2;color:#fff}
+.hero2 > p{margin:6px 0 16px;color:#cfdae6}
+.sbox{position:relative;max-width:680px;margin:0 auto}
+.sbox svg{position:absolute;left:18px;top:50%;width:18px;height:18px;transform:translateY(-50%);color:var(--smut);pointer-events:none}
+.sbox input{width:100%;padding:13px 54px 13px 46px;border:0;border-radius:999px;background:#fff;color:var(--sink);font-size:16px;box-shadow:0 8px 24px rgba(0,0,0,.25)}
+.sbox input::placeholder{color:#5d6878}
+.sbox input:focus-visible{outline:3px solid #8fc1ec;outline-offset:2px}
+.sbox kbd{position:absolute;right:16px;top:50%;transform:translateY(-50%);font:12px/1 Calibri,Carlito,"Segoe UI",Arial,sans-serif;padding:4px 8px;border:1px solid var(--sline);border-radius:6px;background:var(--spanel);color:var(--smut)}
+.sbox input:focus + kbd,.sbox input:not(:placeholder-shown) + kbd{display:none}
+.tabs{display:flex;justify-content:center;gap:4px;margin-top:22px;overflow-x:auto;scrollbar-width:thin}
+.tab{flex:none;display:inline-flex;align-items:center;gap:7px;min-height:42px;padding:9px 18px;border:0;border-radius:11px 11px 0 0;background:none;color:#cfdae6;font-weight:600;cursor:pointer}
+.tab:hover{background:rgba(234,240,246,.12);color:#fff}
+.tab[aria-pressed=true]{background:var(--sbg);color:var(--acc);font-weight:800}
+.tab i{font-style:normal;font-size:11px;min-width:20px;padding:0 6px;border-radius:999px;background:rgba(234,240,246,.18)}
+.tab[aria-pressed=true] i{background:var(--acc);color:#fff}
+.tab:focus-visible{outline:3px solid #8fc1ec;outline-offset:-3px}
+main{padding:6px 28px 36px}
+h2.sh{display:flex;align-items:center;gap:8px;margin:22px 0 10px;font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--smut)}
+h2.sh svg{width:15px;height:15px;color:#a36a00}
+h2.sh small{margin-left:auto;font-size:12px;font-weight:400;letter-spacing:0;text-transform:none}
+.lnk{border:0;background:none;padding:0;color:var(--slink);font:inherit;font-weight:700;text-decoration:underline;cursor:pointer}
+.shown.big{margin:18px 0 0;font-size:14px}
+.pinhint{margin:0;color:var(--smut);font-size:13px}
+/* recently opened */
+.recent{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:18px 0 0}
+.recent .lbl{font-weight:700;color:var(--slink);font-size:13px}
+.rchip{display:inline-flex;align-items:center;min-height:30px;padding:3px 12px;border-radius:999px;background:var(--card);border:1px solid var(--cardLine);color:var(--sink);text-decoration:none;font-weight:600;font-size:13px}
+.rchip:hover{background:var(--ssel)}
+/* pinned tiles */
+.fav{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(132px,1fr));gap:14px}
+.fav li{position:relative}
+.ftile{display:flex;flex-direction:column;align-items:center;gap:9px;height:100%;padding:16px 8px 14px;border-radius:14px;background:var(--card);border:1px solid var(--cardLine);
+  box-shadow:var(--shadow);color:var(--sink);text-decoration:none;font-weight:700;font-size:13px;text-align:center;transition:transform .15s,box-shadow .15s}
+a.ftile:hover{transform:translateY(-2px);box-shadow:var(--shadowUp)}
+.ftile.off{opacity:.75}
+.funpin{position:absolute;top:6px;right:6px;width:24px;height:24px;border:0;border-radius:6px;background:none;color:var(--smut);font-size:16px;line-height:1;cursor:pointer;opacity:0}
+.fav li:hover .funpin,.funpin:focus-visible{opacity:1}
+.funpin:hover{background:var(--spanel2);color:var(--sink)}
+/* the slim tools row */
+.trow{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,270px),1fr));gap:14px}
+.ttile{display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:14px;background:var(--card);border:1px solid var(--cardLine);border-top:4px solid var(--area);
+  box-shadow:var(--shadow);color:var(--sink);text-decoration:none;transition:transform .15s,box-shadow .15s}
+a.ttile:hover{transform:translateY(-2px);box-shadow:var(--shadowUp)}
+.ttile.off{opacity:.85}
+.ico.sm{width:40px;height:40px;border-radius:10px}.ico.sm svg{width:26px;height:26px}
+.tt{min-width:0}.tt b{display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px;font-size:15px}.tt small{display:block;color:var(--smut);font-size:12.5px}
+.tt .st{margin-left:0;font-size:11px;padding:0 8px}
+/* section cards, in columns */
+.mason{columns:4 270px;column-gap:16px}
+.scard{break-inside:avoid;display:block;margin:0 0 16px;border-radius:14px;background:#fff;border:1px solid var(--cardLine);overflow:hidden;box-shadow:var(--shadow)}
+.scard > header{display:flex;align-items:center;flex-wrap:wrap;gap:6px 10px;padding:10px 14px;background:var(--sc);color:#fff}
+.scard h3{margin:0;font-size:15px;color:#fff}
+.scard .sn{margin-left:auto;font-size:12px;opacity:.9}
+.sblurb{margin:0;padding:8px 14px;font-size:12.5px;color:var(--smut);border-bottom:1px solid #edf0f4}
+.sempty{margin:0;padding:16px 14px;color:var(--smut);font-size:13px;font-style:italic}
+.llist{list-style:none;margin:0;padding:0}
+.lrow{display:flex;align-items:center;gap:10px;padding:7px 10px 7px 14px;border-top:1px solid #edf0f4}
+.lrow:first-child{border-top:0}
+.lrow:hover{background:#f2f5f9}
+.ctype{display:grid;place-items:center;flex:none;width:30px;height:30px;border-radius:7px;color:#fff;font-weight:800;font-size:13px;letter-spacing:-.02em}
+.ctype.lg{width:44px;height:44px;border-radius:11px;font-size:18px}
+.t-excel{background:#1d6f42}.t-powerpoint{background:#b7472a}.t-word{background:#2b579a}.t-pdf{background:#8c1d3f;font-size:9.5px}.ctype.lg.t-pdf{font-size:12px}
+.t-form{background:#7a4a08}.t-sharepoint{background:#036c70}.t-teams{background:#4b53bc}.t-folder{background:#627185}.t-web{background:var(--steal)}
+.lmain{display:flex;flex-direction:column;min-width:0;flex:1}
+.cname{font-weight:700;color:var(--slink);text-decoration:none;overflow-wrap:anywhere}
+a.cname:hover{text-decoration:underline}
+.cname.nolink{color:var(--sink)}
+.lmain small{color:var(--smut);font-size:12px;overflow-wrap:anywhere}
+.lacts{display:flex;align-items:center;gap:2px;flex:none}
+.lweb{font-size:11.5px;font-weight:700;color:var(--slink);padding:3px 6px;border-radius:6px;text-decoration:none;opacity:0}
+.lic,.pin{display:grid;place-items:center;width:28px;height:28px;border:0;border-radius:7px;background:none;color:#8a94a2;cursor:pointer;padding:0}
+.lic svg,.pin svg{width:15px;height:15px}
+.lic{opacity:0}
+.lrow:hover .lweb,.lrow:hover .lic,.lrow:focus-within .lweb,.lrow:focus-within .lic,.lic.ed{opacity:1}
+.lic:hover,.pin:hover,.lweb:hover{background:var(--ssel);color:var(--sink)}
+.lic.danger{color:#8c1d3f}
+.pin[aria-pressed=true]{color:#c58a00}
+@media (hover:none){.lweb,.lic{opacity:1}}
+/* the editor's buttons on a section card's coloured header */
+.shacts{display:flex;gap:4px;flex-basis:100%}
+.shb{display:grid;place-items:center;min-width:28px;height:28px;padding:0 6px;border:1px solid rgba(255,255,255,.55);border-radius:7px;background:rgba(255,255,255,.12);color:#fff;font-size:12px;font-weight:700;cursor:pointer}
+.shb svg{width:14px;height:14px}
+.shb:hover{background:rgba(255,255,255,.28)}
+.shb[disabled]{opacity:.35;cursor:default}
+.shb:focus-visible{outline:3px solid #fff;outline-offset:1px}
+.echk{display:flex;align-items:flex-start;gap:8px;font-size:13px}
+.echk input{width:18px;height:18px;margin:1px 0 0}
+@media (max-width:760px){
+  header.top{padding:10px 14px}
+  .hero2{margin:0 10px;padding:20px 14px 0}
+  .hero2 h2{font-size:22px}
+  .tabs{justify-content:flex-start}
+  main{padding:6px 10px 30px}
+  .fav{grid-template-columns:repeat(auto-fill,minmax(104px,1fr))}
+  .gear span{display:none}
+}
 </style>
 </head>
 <body>
 <a class="skip" href="#main">Skip to the tools</a>
 <div id="app"><p class="boot">Opening the Sustainment Dashboard&hellip;</p></div>
-<script id="catData" type="application/json">{"categories":[{"id":"trackers","name":"Trackers","blurb":"Working spreadsheets the office keeps current."},{"id":"briefings","name":"Briefings & slides","blurb":"Recurring reviews and the decks behind them."},{"id":"forms","name":"Forms","blurb":"Forms to fill in, and where to send them."},{"id":"websites","name":"Job websites","blurb":"Websites used for the work itself."},{"id":"af","name":"Air Force employees","blurb":"Pay, personnel, training and support for Air Force employees."},{"id":"navy","name":"Navy employees","blurb":"Pay, personnel, training and support for Navy employees."},{"id":"reference","name":"Reference","blurb":"Guidance, templates and policy."},{"id":"sites","name":"Sites & dashboards","blurb":"Team sites, channels and other dashboards in Teams."}],"items":[{"name":"ATR/BTR Tracker","note":"Above- and below-threshold reprogramming actions.","category":"trackers","type":"excel","url":""},{"name":"Funds Control Tracker","note":"","category":"trackers","type":"excel","url":""},{"name":"Execution Review Slides","note":"","category":"briefings","type":"powerpoint","url":""}]}</script>
+<script id="catData" type="application/json">{"categories":[{"id":"trackers","name":"Trackers","blurb":"Working spreadsheets the office keeps current."},{"id":"briefings","name":"Briefings & slides","blurb":"Recurring reviews and the decks behind them."},{"id":"forms","name":"Forms","blurb":"Forms to fill in, and where to send them."},{"id":"websites","name":"Job websites","blurb":"Websites used for the work itself."},{"id":"af","name":"Air Force employees","blurb":"Pay, personnel, training and support for Air Force employees.","tab":true,"tabName":"Air Force"},{"id":"navy","name":"Navy employees","blurb":"Pay, personnel, training and support for Navy employees.","tab":true,"tabName":"Navy"},{"id":"reference","name":"Reference","blurb":"Guidance, templates and policy."},{"id":"sites","name":"Sites & dashboards","blurb":"Team sites, channels and other dashboards in Teams."}],"items":[{"name":"ATR/BTR Tracker","note":"Above- and below-threshold reprogramming actions.","category":"trackers","type":"excel","url":""},{"name":"Funds Control Tracker","note":"","category":"trackers","type":"excel","url":""},{"name":"Execution Review Slides","note":"","category":"briefings","type":"powerpoint","url":""}]}</script>
 <script>
 // ===== tools.js =====
 // THE TOOL LIST. This is the only file you edit to add, change or retire a tool.
@@ -583,7 +614,8 @@ function sectionForm(id) {
   const n = k ? citems().filter(c => c.category === k.id).length : 0;
   dlg('<header><h2 id="sdlgT">' + (k ? 'Change a section' : 'Add a section') + '</h2><button type="button" class="x" data-e="close" aria-label="Close">×</button></header>'
     + '<div class="eform">' + field('sName', 'Name', '<input id="sName" maxlength="60" value="' + esc(k ? k.name : '') + '" autocomplete="off">')
-    + field('sBlurb', 'Description', '<input id="sBlurb" maxlength="160" value="' + esc(k ? k.blurb : '') + '" placeholder="One line under the heading (optional)" autocomplete="off">')
+    + field('sBlurb', 'Description', '<input id="sBlurb" maxlength="160" value="' + esc(k ? k.blurb : '') + '" placeholder="Shown while editing, and when the section is empty (optional)" autocomplete="off">')
+    + '<label class="echk"><input type="checkbox" id="sTab"' + (k && k.tab ? ' checked' : '') + '> Show as a tab at the top (like Air Force and Navy), so its links are one click away</label>'
     + '<p class="eerr" id="eErr" role="alert"></p></div>'
     + '<footer>' + (k ? '<button type="button" class="btn danger" data-e="delSection" data-s="' + esc(k.id) + '">Delete section' + (n ? ' and its ' + n + ' link' + (n > 1 ? 's' : '') : '') + '</button>' : '')
     + '<span class="sp"></span><button type="button" class="btn" data-e="close">Cancel</button>'
@@ -593,8 +625,11 @@ function saveSection(id) {
   const name = document.getElementById('sName').value.trim(), blurb = document.getElementById('sBlurb').value.trim(), err = document.getElementById('eErr');
   if (!name) { err.textContent = 'Give the section a name.'; return; }
   if (cats().some(k => k.id !== id && k.name.toLowerCase() === name.toLowerCase())) { err.textContent = 'There is already a section with that name.'; return; }
-  if (id) { const k = CATALOG.categories.find(x => x.id === id); k.name = name; k.blurb = blurb; }
-  else CATALOG.categories.push({ id: slugId(name, new Set(cats().map(k => k.id))), name, blurb });
+  const tab = document.getElementById('sTab').checked;
+  let k;
+  if (id) { k = CATALOG.categories.find(x => x.id === id); k.name = name; k.blurb = blurb; }
+  else { k = { id: slugId(name, new Set(cats().map(x => x.id))), name, blurb }; CATALOG.categories.push(k); }
+  if (tab) k.tab = true; else { delete k.tab; delete k.tabName; }
   dlgClose(); edKeep();
   toast(id ? 'Section changed (not saved yet)' : 'Section added (not saved yet)');
 }
@@ -614,7 +649,7 @@ function moveSection(id, d) {
   if (i < 0 || j < 0 || j >= a.length) return;
   [a[i], a[j]] = [a[j], a[i]];
   edKeep();
-  document.querySelector('[data-e="mv"][data-s="' + CSS.escape(id) + '"][data-d="' + d + '"]')?.focus();
+  (document.querySelector('[data-e="mv"][data-s="' + CSS.escape(id) + '"][data-d="' + d + '"]:not([disabled])') || document.querySelector('[data-e="mv"][data-s="' + CSS.escape(id) + '"]:not([disabled])'))?.focus();
 }
 function edUndo() {
   const u = ED.undo; if (!u) return;
@@ -665,7 +700,7 @@ const MAINT_HOOKS = {
       const b = e.target.closest('[data-e]'); if (!b) return;
       const k = b.dataset.k, sId = b.dataset.s;
       switch (b.dataset.e) {
-        case 'toggle': ED.on = !ED.on; store.set('editing', ED.on); if (ED.on && !(S.view === 'cat' || S.view.startsWith('cat:'))) { S.view = 'cat'; store.set('view', 'cat'); } draw(); document.querySelector('[data-e="toggle"]')?.focus(); break;
+        case 'toggle': ED.on = !ED.on; store.set('editing', ED.on); if (ED.on && S.tab === 'tools') { S.tab = 'all'; store.set('tab', 'all'); } draw(); document.querySelector('[data-e="toggle"]')?.focus(); break;
         case 'save': edSave(); break;
         case 'saveTeam': edSaveTeam(); break;
         case 'import': importPick(); break;
@@ -704,18 +739,19 @@ const MAINT_HOOKS = {
   },
   rowActs(c, k) {
     if (!ED.on) return '';
-    return '<button type="button" class="btn sm ico-only" data-e="editLink" data-k="' + esc(k) + '" title="Change" aria-label="Change ' + esc(c.name) + '">' + UI.edit + '</button>'
-      + '<button type="button" class="btn sm ico-only danger" data-e="delLink" data-k="' + esc(k) + '" title="Delete" aria-label="Delete ' + esc(c.name) + '">' + UI.trash + '</button>';
+    return '<button type="button" class="lic ed" data-e="editLink" data-k="' + esc(k) + '" title="Change" aria-label="Change ' + esc(c.name) + '">' + UI.edit + '</button>'
+      + '<button type="button" class="lic ed danger" data-e="delLink" data-k="' + esc(k) + '" title="Delete" aria-label="Delete ' + esc(c.name) + '">' + UI.trash + '</button>';
   },
   sectionActs(g) {
     if (!ED.on) return '';
     const i = cats().findIndex(k => k.id === g.id);
-    return '<span class="sacts2"><button type="button" class="btn sm" data-e="addLink" data-s="' + esc(g.id) + '">+ Add link</button>'
-      + '<button type="button" class="btn sm" data-e="editSection" data-s="' + esc(g.id) + '">Change section</button>'
-      + '<button type="button" class="btn sm ico-only" data-e="mv" data-s="' + esc(g.id) + '" data-d="-1" aria-label="Move ' + esc(g.name) + ' up"' + (i > 0 ? '' : ' disabled') + '>▲</button>'
-      + '<button type="button" class="btn sm ico-only" data-e="mv" data-s="' + esc(g.id) + '" data-d="1" aria-label="Move ' + esc(g.name) + ' down"' + (i < cats().length - 1 ? '' : ' disabled') + '>▼</button></span>';
+    return '<span class="shacts"><button type="button" class="shb wide" data-e="addLink" data-s="' + esc(g.id) + '">+ Link</button>'
+      + '<button type="button" class="shb" data-e="editSection" data-s="' + esc(g.id) + '" title="Change section" aria-label="Change the section ' + esc(g.name) + '">' + UI.edit + '</button>'
+      + '<button type="button" class="shb" data-e="mv" data-s="' + esc(g.id) + '" data-d="-1" title="Move earlier" aria-label="Move ' + esc(g.name) + ' earlier"' + (i > 0 ? '' : ' disabled') + '>◀</button>'
+      + '<button type="button" class="shb" data-e="mv" data-s="' + esc(g.id) + '" data-d="1" title="Move later" aria-label="Move ' + esc(g.name) + ' later"' + (i < cats().length - 1 ? '' : ' disabled') + '>▶</button></span>';
   },
   catalogFoot: () => '<div class="addsec"><button type="button" class="btn" data-e="addSection">+ Add a section</button></div>',
+  // a new section joins the Everything tab; take the person there so they see it arrive
   footNote: () => ' Tools are listed in src/tools.js; links are edited here, with Edit catalog.',
 };
 /*<MAINT@*/
@@ -723,8 +759,8 @@ const MAINT_HOOKS = {
 // ===== app.js =====
 'use strict';
 // Sustainment Dashboard: draws the tool list (tools.js) and the catalog of links (catalog.js) as a page. Nothing here
-// holds data; the page reads DASH and CATALOG and remembers, in this browser only, which menu entry was chosen, which
-// links are pinned and what was opened lately.
+// holds data; the page reads DASH and CATALOG and remembers, in this browser only, which tab was chosen, which links are
+// pinned and what was opened lately.
 
 const STATUS = {
   live:    { label: 'Live',           cls: 'st-live',    order: 0 },
@@ -814,7 +850,10 @@ function normCatalog(raw) {
     if (!name) { fixed.push('a section with no name was left out'); continue; }
     if (!id) id = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'section';
     while (seen.has(id)) id += '-2';
-    seen.add(id); out.categories.push({ id, name, blurb: str(k.blurb) });
+    seen.add(id);
+    const sec = { id, name, blurb: str(k.blurb) };
+    if (k.tab === true) { sec.tab = true; if (str(k.tabName)) sec.tabName = str(k.tabName).slice(0, 24); }
+    out.categories.push(sec);
   }
   for (const c of (raw && Array.isArray(raw.items) ? raw.items : [])) {
     const name = str(c && c.name);
@@ -838,11 +877,22 @@ let CATALOG = readCatalog();
 const HOOK = (name, ...a) => (typeof MAINT_HOOKS !== 'undefined' && typeof MAINT_HOOKS[name] === 'function') ? MAINT_HOOKS[name](...a) : '';
 const editing = () => !!HOOK('editing');
 
-// ---- state
+// ---- state. The page is one view with tabs (layout D, chosen by Brad 22 Nov 2026): the welcome band with the search,
+// tabs along its foot, then pinned tiles, the tools and the catalog as section cards.
+//   tab: 'all' | 'tools' | 'files' | 'web' | 'forms' | 's:<section id>' (a section marked as a tab, e.g. Air Force, Navy)
+const KIND = {   // the tabs that gather links by what they are, whatever section they sit in
+  files: { label: 'Files',    types: ['excel', 'powerpoint', 'word', 'pdf', 'folder'] },
+  web:   { label: 'Websites', types: ['web', 'sharepoint', 'teams'] },
+  forms: { label: 'Forms',    types: ['form'] },
+};
+// each section's colour: the starting sections have their own; any other takes one from the palette by its id, so it
+// keeps its colour when sections are reordered. White text clears 4.5:1 on every one.
+const SEC_COLOR = { trackers: '#1d6f42', briefings: '#b7472a', forms: '#7a4a08', websites: '#055795', af: '#25394d', navy: '#1f3f73', reference: '#5d6878', sites: '#036c70' };
+const SEC_PALETTE = ['#055795', '#1d6f42', '#7a4a08', '#8c1d3f', '#036c70', '#4b53bc', '#25394d', '#5d6878', '#b7472a'];
+const secColor = id => SEC_COLOR[id] || SEC_PALETTE[[...String(id)].reduce((h, ch) => (h * 31 + ch.charCodeAt(0)) >>> 0, 7) % SEC_PALETTE.length];
 const S = {
-  view: String(store.get('view', 'all')),   // 'all' | an area id | 'other' | 'cat' | 'cat:<category id>'
+  tab: String(store.get('tab', 'all')),
   status: store.get('status', 'all'),
-  ctype: store.get('ctype', 'all'),
   q: '',
 };
 const areas = () => DASH.areas || [];
@@ -852,11 +902,19 @@ const cats = () => CATALOG.categories || [];
 const citems = () => (CATALOG.items || []).slice();
 const catOf = c => cats().find(k => k.id === c.category);
 const ckey = c => 'c:' + (c.id || String(c.name || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''));
-const viewOk = v => v === 'all' || v === 'other' || v === 'cat' || areas().some(a => a.id === v) || (v.startsWith('cat:') && cats().some(k => 'cat:' + k.id === v));
-if (!viewOk(S.view)) S.view = 'all';
+const tabSecs = () => cats().filter(k => k.tab);
+const tabOk = v => v === 'all' || v === 'tools' || !!KIND[v] || (v.startsWith('s:') && tabSecs().some(k => 's:' + k.id === v));
+if (!tabOk(S.tab)) S.tab = 'all';
 if (S.status !== 'all' && !STATUS[S.status]) S.status = 'all';
-if (S.ctype !== 'all' && !TYPES[S.ctype]) S.ctype = 'all';
 const pins = () => { const p = store.get('pins', []); return Array.isArray(p) ? p : []; };
+// the links the tab on screen covers
+function tabLinks(tab) {
+  const all = citems();
+  if (KIND[tab]) return all.filter(c => KIND[tab].types.includes(c.type));
+  if (tab.startsWith('s:')) return all.filter(c => c.category === tab.slice(2));
+  if (tab === 'tools') return [];
+  return all;
+}
 
 function matches(t, q) {
   if (!q) return true;
@@ -874,12 +932,23 @@ function cmatches(c, q) {
   const hay = [c.name, c.note, (catOf(c) || {}).name, (TYPES[c.type] || {}).label].join(' ').toLowerCase();
   return q.toLowerCase().split(/\s+/).filter(Boolean).every(w => hay.includes(w));
 }
-function visible() {
-  return tools().filter(t => (S.status === 'all' || t.status === S.status) && matches(t, S.q))
-    .sort((a, b) => ((STATUS[a.status] || { order: 9 }).order - (STATUS[b.status] || { order: 9 }).order));
-}
+const byStatus = (a, b) => ((STATUS[a.status] || { order: 9 }).order - (STATUS[b.status] || { order: 9 }).order);
 
-// ---- drawing
+// ---- how a link opens. Office files open in the desktop app (ms-excel:ofe|u|<address>), never the browser preview;
+// the browser hands the address to Office and stays where it is, so no new tab. Everything else opens in a new tab.
+function hrefOf(c) {
+  if (!linkOk(c.url)) return null;
+  const T = TYPES[c.type] || TYPES.web, url = c.url.trim();
+  return T.app ? { href: T.app + ':ofe|u|' + url, tab: false, web: url, app: T.appName } : { href: url, tab: true };
+}
+const aOpen = (c, k, cls, inner, extra) => {
+  const h = hrefOf(c);
+  return '<a class="' + cls + '" href="' + esc(h.href) + '"' + (h.tab ? ' target="_blank" rel="noopener noreferrer"' : '') + ' data-open="' + esc(k) + '"' + (extra || '') + '>' + inner + '</a>';
+};
+const typeTile = (c, size) => { const T = TYPES[c.type] || TYPES.web; return '<span class="ctype t-' + esc(TYPES[c.type] ? c.type : 'web') + (size ? ' ' + size : '') + '" title="' + esc(T.label) + '" aria-hidden="true">' + esc(T.mark) + '</span>'; };
+const pinBtn = (c, k) => { const on = pins().includes(k); return '<button type="button" class="pin" data-pin="' + esc(k) + '" aria-pressed="' + on + '" title="' + (on ? 'Unpin' : 'Pin to the top') + '" aria-label="Pin ' + esc(c.name) + '">' + (on ? UI.pinOn : UI.pin) + '</button>'; };
+
+// ---- the tools
 function card(t) {
   const st = STATUS[t.status] || { label: t.status || 'Unknown', cls: 'st-planned' };
   const ok = linkOk(t.url);
@@ -889,8 +958,7 @@ function card(t) {
     ? '<a class="btn pri" href="' + esc(t.url.trim()) + '" target="_blank" rel="noopener noreferrer" data-open="' + esc(t.id) + '">' + UI.open + 'Open ' + esc(t.name) + '</a>'
       + '<button type="button" class="btn" data-copy="' + esc(t.id) + '">' + UI.copy + 'Copy link</button>'
     : '<span class="btn" aria-disabled="true" role="link" title="This tool’s Teams link has not been added to the tool list yet">'
-      + (t.status === 'live' ? 'Link not set' : 'Not open yet') + '</span>'
-      + (t.status === 'live' ? '<span class="hint">Add its Teams link to the tool list.</span>' : '');
+      + (t.status === 'live' ? 'Link not set' : 'Not open yet') + '</span>';
   return '<article class="card' + (ok ? '' : ' off') + '" style="--area:' + color + '" aria-labelledby="t-' + esc(t.id) + '">'
     + '<div class="head"><span class="ico">' + iconOf(t) + '</span><div><h4 id="t-' + esc(t.id) + '">' + hl(t.name) + '</h4>'
     + (t.full ? '<p class="full">' + hl(t.full) + '</p>' : '') + '</div>'
@@ -899,137 +967,128 @@ function card(t) {
     + (feats ? '<ul class="feat" aria-label="What is inside">' + feats + '</ul>' : '')
     + '<div class="acts">' + open + '</div></article>';
 }
-
-function railHtml() {
-  const all = tools();
-  const btn = (v, label, n, dot) => '<button type="button" data-view="' + esc(v) + '" aria-pressed="' + (S.view === v) + '">'
-    + (dot ? '<span class="dot" style="background:' + dot + '"></span>' : '') + esc(label)
-    + (n == null ? '' : '<span class="n">' + n + '</span>') + '</button>';
-  let h = '<h2>Tools</h2>' + btn('all', 'All tools', all.length);
-  h += '<h2>Areas</h2>' + areas().map(a => btn(a.id, a.name, all.filter(t => t.area === a.id).length, AREA_COLOR[a.id] || 'var(--a-other)')).join('');
-  const orphans = all.filter(t => !areaOf(t)).length;
-  if (orphans) h += btn('other', 'Other', orphans, 'var(--a-other)');
-  h += '<h2>Catalog</h2>' + btn('cat', 'All links', citems().length)
-    + cats().map(k => btn('cat:' + k.id, k.name, citems().filter(c => c.category === k.id).length)).join('');
-  return h;
+// the slim row on Everything: one line per tool, the whole tile opens it
+function toolTile(t) {
+  const st = STATUS[t.status] || { label: t.status, cls: 'st-planned' }, ok = linkOk(t.url);
+  const inner = '<span class="ico sm">' + iconOf(t) + '</span><span class="tt"><b>' + hl(t.name) + ' <span class="st ' + st.cls + '">' + esc(st.label) + '</span></b>'
+    + '<small>' + hl(t.full || t.tagline) + '</small></span>';
+  return ok
+    ? '<a class="ttile" style="--area:' + (AREA_COLOR[t.area] || 'var(--a-other)') + '" href="' + esc(t.url.trim()) + '" target="_blank" rel="noopener noreferrer" data-open="' + esc(t.id) + '">' + inner + '</a>'
+    : '<div class="ttile off" style="--area:' + (AREA_COLOR[t.area] || 'var(--a-other)') + '" title="' + (t.status === 'live' ? 'This tool’s Teams link has not been set yet' : 'Not open yet') + '">' + inner + '</div>';
+}
+function toolsTab() {
+  const chip = (v, l) => '<button type="button" class="chip" data-status="' + v + '" aria-pressed="' + (S.status === v) + '">' + esc(l) + '</button>';
+  const vis = tools().filter(t => (S.status === 'all' || t.status === S.status) && matches(t, S.q)).sort(byStatus);
+  let h = '<div class="bar" role="group" aria-label="Show tools by status"><span class="lbl">Show</span>' + chip('all', 'All')
+    + Object.keys(STATUS).filter(k => tools().some(t => t.status === k)).map(k => chip(k, STATUS[k].label)).join('')
+    + '<span class="shown" role="status">' + vis.length + ' of ' + tools().length + ' tools</span></div>';
+  let any = false;
+  for (const a of areas().concat([{ id: '', name: 'Other', blurb: '' }])) {
+    const list = vis.filter(t => a.id ? t.area === a.id : !areaOf(t));
+    if (!list.length) continue;
+    any = true;
+    h += '<section class="area"><header><h3><span class="sw" style="background:' + (AREA_COLOR[a.id] || 'var(--a-other)') + '"></span>' + esc(a.name) + '</h3>'
+      + (a.blurb ? '<p>' + esc(a.blurb) + '</p>' : '') + '</header><div class="grid">' + list.map(card).join('') + '</div></section>';
+  }
+  return h + (any ? '' : '<div class="empty">No tool here.</div>');
 }
 
-function heroHtml() {
-  const all = tools();
-  const n = k => all.filter(t => t.status === k).length;
-  const stat = (v, l) => '<div class="stat"><b>' + v + '</b><span>' + esc(l) + '</span></div>';
-  return '<div class="hero"><div><h2>' + esc(DASH.title) + '</h2><p>' + esc(DASH.subtitle) + '. Pick a tool to open it in a new tab.</p></div>'
-    + '<div class="stats">' + stat(n('live'), 'live') + stat(n('dev'), 'in development') + (n('planned') ? stat(n('planned'), 'planned') : '')
-    + '<button type="button" class="stat go" data-view="cat"><b>' + citems().length + '</b><span>links in the catalog ›</span></button></div></div>';
+// ---- the catalog: a section card holds its links, each a row whose name opens it
+function lrow(c) {
+  const k = ckey(c), h = hrefOf(c), T = TYPES[c.type] || TYPES.web;
+  const name = h ? aOpen(c, k, 'cname', hl(c.name), ' title="' + esc(T.app ? 'Opens in ' + T.app + ' desktop app' : 'Opens in a new tab') + '"') : '<span class="cname nolink" title="Link not set yet">' + hl(c.name) + '</span>';
+  const web = h && h.web ? '<a class="lweb" href="' + esc(h.web) + '" target="_blank" rel="noopener noreferrer" data-open="' + esc(k) + '" title="Open in the browser instead">Browser<span class="vh"> version of ' + esc(c.name) + ' (opens in a new tab)</span></a>' : '';
+  return '<li class="lrow' + (h ? '' : ' off') + '">' + typeTile(c) + '<span class="lmain">' + name
+    + '<small>' + (c.note ? hl(c.note) : esc(T.label)) + (h ? '' : ' · link not set') + '</small></span>'
+    + '<span class="lacts">' + web + (h ? '<button type="button" class="lic" data-ccopy="' + esc(k) + '" title="Copy link" aria-label="Copy the link to ' + esc(c.name) + '">' + UI.copy + '</button>' : '')
+    + HOOK('rowActs', c, k) + pinBtn(c, k) + '</span></li>';
+}
+function secCard(g, list) {
+  const color = g.id ? secColor(g.id) : '#5d6878';
+  return '<section class="scard" style="--sc:' + color + '" aria-labelledby="sc-' + esc(g.id || 'other') + '"><header><h3 id="sc-' + esc(g.id || 'other') + '">' + esc(g.name) + '</h3>'
+    + '<span class="sn">' + list.length + ' link' + (list.length === 1 ? '' : 's') + '</span>' + (g.id ? HOOK('sectionActs', g) : '') + '</header>'
+    + (g.blurb && (editing() || !list.length) ? '<p class="sblurb">' + esc(g.blurb) + '</p>' : '')
+    + (list.length ? '<ul class="llist">' + list.map(lrow).join('') + '</ul>' : '<p class="sempty">No links in this section yet.</p>') + '</section>';
+}
+function catalogCards(links, opts = {}) {
+  const ed = editing() && !S.q;
+  const groups = cats().concat([{ id: '', name: 'Other', blurb: '' }]);
+  let h = '', n = 0;
+  for (const g of groups) {
+    if (opts.only && g.id !== opts.only) continue;
+    const list = links.filter(c => g.id ? c.category === g.id : !catOf(c)).sort((a, b) => String(a.name).localeCompare(String(b.name)));
+    if (!list.length && !(ed && g.id && !opts.byKind) && !(opts.only && g.id === opts.only)) continue;
+    n++; h += secCard(g, list);
+  }
+  return n ? '<div class="mason">' + h + '</div>' : '';
 }
 
+// ---- the top of Everything: recently opened and the pinned tiles
 function recentHtml() {
   const ids = store.get('recent', []);
   const list = (Array.isArray(ids) ? ids : []).map(id => {
     if (String(id).startsWith('c:')) {
       const c = citems().find(x => ckey(x) === id);
-      if (!c || !linkOk(c.url)) return null;
-      const T = TYPES[c.type] || {};
-      return T.app ? { id, name: c.name, href: T.app + ':ofe|u|' + c.url.trim(), tab: false } : { id, name: c.name, href: c.url.trim(), tab: true };
+      return c && hrefOf(c) ? aOpen(c, id, 'rchip', esc(c.name)) : null;
     }
     const t = tools().find(x => x.id === id);
-    return t && linkOk(t.url) ? { id, name: t.name, href: t.url.trim(), tab: true } : null;
+    return t && linkOk(t.url) ? '<a class="rchip" href="' + esc(t.url.trim()) + '" target="_blank" rel="noopener noreferrer" data-open="' + esc(id) + '">' + esc(t.name) + '</a>' : null;
   }).filter(Boolean).slice(0, 6);
-  if (!list.length) return '';
-  return '<div class="recent"><span class="lbl">Recently opened</span>' + list.map(r =>
-    '<a href="' + esc(r.href) + '"' + (r.tab ? ' target="_blank" rel="noopener noreferrer"' : '') + ' data-open="' + esc(r.id) + '">' + esc(r.name) + '</a>').join('') + '</div>';
+  return list.length ? '<div class="recent"><span class="lbl">Recently opened</span>' + list.join('') + '</div>' : '';
 }
-
-// ---- the catalog rows
-function crow(c) {
-  const T = TYPES[c.type] || TYPES.web, ok = linkOk(c.url), k = ckey(c), pinned = pins().includes(k);
-  const url = ok ? c.url.trim() : '';
-  const tab = ' target="_blank" rel="noopener noreferrer"';
-  let name, acts;
-  if (!ok) {
-    name = '<span class="cname">' + hl(c.name) + '</span>';
-    acts = '<span class="btn sm" aria-disabled="true" role="link" title="This link has not been added to the catalog yet">Link not set</span>';
-  } else if (T.app) {
-    // the desktop app: no new tab (the browser hands the address to Office and stays where it is)
-    const app = T.app + ':ofe|u|' + url;
-    name = '<a class="cname" href="' + esc(app) + '" data-open="' + esc(k) + '">' + hl(c.name) + '</a>';
-    acts = '<a class="btn sm pri" href="' + esc(app) + '" data-open="' + esc(k) + '">Open in ' + esc(T.appName) + '</a>'
-      + '<a class="btn sm" href="' + esc(url) + '"' + tab + ' data-open="' + esc(k) + '">Browser<span class="vh"> (opens in a new tab)</span></a>';
-  } else {
-    name = '<a class="cname" href="' + esc(url) + '"' + tab + ' data-open="' + esc(k) + '">' + hl(c.name) + '</a>';
-    acts = '<a class="btn sm pri" href="' + esc(url) + '"' + tab + ' data-open="' + esc(k) + '">' + UI.open + 'Open<span class="vh"> (opens in a new tab)</span></a>';
-  }
-  if (ok) acts += '<button type="button" class="btn sm ico-only" data-ccopy="' + esc(k) + '" title="Copy link" aria-label="Copy the link to ' + esc(c.name) + '">' + UI.copy + '</button>';
-  acts += HOOK('rowActs', c, k);
-  acts += '<button type="button" class="btn sm ico-only pin" data-pin="' + esc(k) + '" aria-pressed="' + pinned + '" title="' + (pinned ? 'Unpin' : 'Pin to the top') + '" aria-label="Pin ' + esc(c.name) + '">' + (pinned ? UI.pinOn : UI.pin) + '</button>';
-  return '<li class="crow' + (ok ? '' : ' off') + '"><span class="ctype t-' + esc(TYPES[c.type] ? c.type : 'web') + '" title="' + esc(T.label) + '" aria-hidden="true">' + esc(T.mark) + '</span>'
-    + '<div class="cmain">' + name + '<span class="cmeta"><span class="vh">' + esc(T.label) + '. </span>' + (c.note ? hl(c.note) : '') + '</span></div>'
-    + '<span class="ctag">' + esc(T.label) + '</span><div class="cacts">' + acts + '</div></li>';
-}
-function clist(list) { return '<ul class="clist">' + list.map(crow).join('') + '</ul>'; }
 function pinnedHtml() {
   const P = pins(), list = citems().filter(c => P.includes(ckey(c))).sort((a, b) => P.indexOf(ckey(a)) - P.indexOf(ckey(b)));
-  if (!list.length) return '';
-  return '<section class="area"><header><h3>' + UI.pinOn + 'Pinned links</h3><p>Pinned in this browser. Pin or unpin any link in the catalog.</p></header>' + clist(list) + '</section>';
+  if (!list.length) return '<h2 class="sh" id="pinned">' + UI.pinOn + 'Pinned</h2><p class="pinhint">Star a link (☆) to pin it here. Pins are kept in your browser.</p>';
+  return '<h2 class="sh" id="pinned">' + UI.pinOn + 'Pinned<small>your favourites, in this browser</small></h2><ul class="fav">' + list.map(c => {
+    const k = ckey(c), inner = typeTile(c, 'lg') + '<span>' + esc(c.name) + '</span>';
+    return '<li>' + (hrefOf(c) ? aOpen(c, k, 'ftile', inner) : '<span class="ftile off" title="Link not set yet">' + inner + '</span>')
+      + '<button type="button" class="funpin" data-pin="' + esc(k) + '" aria-pressed="true" aria-label="Unpin ' + esc(c.name) + '" title="Unpin">×</button></li>';
+  }).join('') + '</ul>';
 }
-function catalogHtml() {
-  const one = S.view.startsWith('cat:') ? S.view.slice(4) : '';
-  const all = citems().filter(c => !one || c.category === one);
-  const vis = all.filter(c => (S.ctype === 'all' || c.type === S.ctype) && cmatches(c, S.q));
-  const chip = (v, l) => '<button type="button" class="chip" data-ctype="' + v + '" aria-pressed="' + (S.ctype === v) + '">' + esc(l) + '</button>';
-  const present = Object.keys(TYPES).filter(k => all.some(c => c.type === k));
-  let h = '<div class="hero slim"><div><h2>Catalog</h2><p>Links to the trackers, briefings and references used around the office. Office files open in their desktop app.</p></div>'
-    + '<div class="stats"><div class="stat"><b>' + citems().length + '</b><span>links</span></div><div class="stat"><b>' + cats().length + '</b><span>sections</span></div></div></div>';
-  if (!one && !S.q) h += pinnedHtml();
-  h += '<div class="bar" role="group" aria-label="Show by type"><span class="lbl">Type</span>' + chip('all', 'All') + present.map(k => chip(k, TYPES[k].label)).join('')
-    + '<span class="shown" role="status">' + vis.length + ' of ' + all.length + ' links' + (S.q ? ' matching “' + esc(S.q) + '”' : '') + '</span></div>';
-  const groups = one ? cats().filter(k => k.id === one) : cats().concat([{ id: '', name: 'Other', blurb: '' }]);
-  const ed = editing() && !S.q && S.ctype === 'all';
-  let any = false;
-  for (const g of groups) {
-    const list = vis.filter(c => g.id ? c.category === g.id : !catOf(c)).sort((a, b) => String(a.name).localeCompare(String(b.name)));
-    // an empty section shows while editing (so a link can be added to it) and when it is the section chosen in the menu
-    if (!list.length && !(ed && g.id) && !(one && g.id === one && !S.q && S.ctype === 'all')) continue;
-    any = true;
-    h += '<section class="area"><header><h3>' + esc(g.name) + ' <span class="hn">' + list.length + '</span></h3>' + (g.blurb ? '<p>' + esc(g.blurb) + '</p>' : '')
-      + (g.id ? HOOK('sectionActs', g) : '') + '</header>'
-      + (list.length ? clist(list) : '<div class="empty sm">No links in this section yet.</div>') + '</section>';
-  }
-  if (!any) h += '<div class="empty">' + (S.q ? 'No link matches “' + esc(S.q) + '”. Try fewer words, or clear the search (Esc).' : 'No links here yet.') + '</div>';
-  if (ed && !one) h += HOOK('catalogFoot');
+
+// ---- the welcome band and its tabs
+function greet() { const h = new Date().getHours(); return h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening'; }
+function tabsHtml() {
+  const t = (v, label, n) => '<button type="button" class="tab" data-tab="' + esc(v) + '" aria-pressed="' + (S.tab === v) + '">' + esc(label) + '<i>' + n + '</i></button>';
+  return '<div class="tabs" role="group" aria-label="Show">' + t('all', 'Everything', tools().length + citems().length) + t('tools', 'Tools', tools().length)
+    + Object.keys(KIND).map(k => t(k, KIND[k].label, tabLinks(k).length)).join('')
+    + tabSecs().map(g => t('s:' + g.id, g.tabName || g.name.replace(/\s+employees$/i, ''), citems().filter(c => c.category === g.id).length)).join('') + '</div>';
+}
+
+function searchHtml() {
+  const scope = S.tab === 'all' ? 'everything' : S.tab === 'tools' ? 'the tools' : 'this tab';
+  const ts = (S.tab === 'all' || S.tab === 'tools') ? tools().filter(t => matches(t, S.q)).sort(byStatus) : [];
+  const ls = tabLinks(S.tab).filter(c => cmatches(c, S.q));
+  let h = '<p class="shown big" role="status">' + (ts.length + ls.length) + ' result' + (ts.length + ls.length === 1 ? '' : 's') + ' for “' + esc(S.q) + '” in ' + scope
+    + (S.tab !== 'all' ? ' · <button type="button" class="lnk" data-tab="all">search everything</button>' : '') + '</p>';
+  if (ts.length) h += '<h2 class="sh">Tools</h2><div class="trow">' + ts.map(toolTile).join('') + '</div>';
+  if (ls.length) h += '<h2 class="sh">Links</h2>' + catalogCards(ls, { byKind: true });
+  if (!ts.length && !ls.length) h += '<div class="empty">Nothing matches. Try fewer words, or clear the search (Esc).</div>';
   return h;
 }
 
 function mainHtml() {
-  if (S.view === 'cat' || S.view.startsWith('cat:')) return catalogHtml();
-  const vis = visible();
-  const chip = (v, l) => '<button type="button" class="chip" data-status="' + v + '" aria-pressed="' + (S.status === v) + '">' + esc(l) + '</button>';
-  let h = '';
-  if (S.view === 'all' && !S.q) h += heroHtml() + recentHtml() + pinnedHtml();
-  const inView = vis.filter(t => S.view === 'all' || (S.view === 'other' ? !areaOf(t) : t.area === S.view));
-  h += '<div class="bar" role="group" aria-label="Show by status"><span class="lbl">Show</span>' + chip('all', 'All')
-    + Object.keys(STATUS).filter(k => tools().some(t => t.status === k)).map(k => chip(k, STATUS[k].label)).join('')
-    + '<span class="shown" role="status">' + inView.length + ' of ' + tools().length + ' tools' + (S.q ? ' matching “' + esc(S.q) + '”' : '') + '</span></div>';
-  const groups = S.view === 'all' ? areas().concat([{ id: 'other', name: 'Other', blurb: '' }]) : [S.view === 'other' ? { id: 'other', name: 'Other', blurb: '' } : areas().find(a => a.id === S.view)];
-  let any = false;
-  for (const a of groups) {
-    const list = inView.filter(t => a.id === 'other' ? !areaOf(t) : t.area === a.id);
-    if (!list.length) continue;
-    any = true;
-    h += '<section class="area" aria-labelledby="a-' + esc(a.id) + '"><header><h3 id="a-' + esc(a.id) + '"><span class="sw" style="background:' + (AREA_COLOR[a.id] || 'var(--a-other)') + '"></span>'
-      + esc(a.name) + '</h3>' + (a.blurb ? '<p>' + esc(a.blurb) + '</p>' : '') + '</header><div class="grid">' + list.map(card).join('') + '</div></section>';
+  if (S.q) return searchHtml();
+  if (S.tab === 'tools') return toolsTab();
+  if (KIND[S.tab]) {
+    const ls = tabLinks(S.tab);
+    return '<h2 class="sh">' + esc(KIND[S.tab].label) + '<small>' + ls.length + ' link' + (ls.length === 1 ? '' : 's') + ', by section</small></h2>'
+      + (catalogCards(ls, { byKind: true }) || '<div class="empty">No ' + esc(KIND[S.tab].label.toLowerCase()) + ' in the catalog yet.</div>');
   }
-  // a search from the home view looks through the catalog too
-  const cm = S.view === 'all' && S.q ? citems().filter(c => cmatches(c, S.q)) : [];
-  if (!any && !cm.length) h += '<div class="empty">' + (S.q ? 'Nothing matches “' + esc(S.q) + '”. Try fewer words, or clear the search (Esc).' : 'No tools here yet.') + '</div>';
-  if (cm.length) h += '<section class="area"><header><h3>From the catalog <span class="hn">' + cm.length + '</span></h3></header>' + clist(cm) + '</section>';
-  return h;
+  if (S.tab.startsWith('s:')) return catalogCards(tabLinks(S.tab), { only: S.tab.slice(2) });
+  // Everything
+  const T = tools().slice().sort(byStatus);
+  return recentHtml() + pinnedHtml()
+    + '<h2 class="sh">Tools<small><button type="button" class="lnk" data-tab="tools">all tools ›</button></small></h2><div class="trow">' + T.map(toolTile).join('') + '</div>'
+    + '<h2 class="sh">Catalog<small>' + cats().length + ' sections · ' + citems().length + ' links</small></h2>'
+    + (catalogCards(citems()) || '<div class="empty">No links yet.</div>') + (editing() ? HOOK('catalogFoot') : '');
 }
 
 function draw() {
-  if (!viewOk(S.view)) S.view = 'cat';   // a section deleted while it was open
+  if (!tabOk(S.tab)) S.tab = 'all';   // a section deleted, or no longer a tab, while it was open
   HOOK('drawBar');
-  document.getElementById('rail').innerHTML = railHtml();
+  document.getElementById('heroTabs').innerHTML = tabsHtml();
+  document.getElementById('pinCount').textContent = pins().filter(k => citems().some(c => ckey(c) === k)).length;
   document.getElementById('main').innerHTML = mainHtml() + '<footer class="foot">This page holds no data: it is a list of links. Pins and recently opened are kept in your browser only.' + HOOK('footNote') + '</footer>';
 }
 
@@ -1050,7 +1109,7 @@ function togglePin(k) {
   const P = pins(), i = P.indexOf(k);
   if (i >= 0) P.splice(i, 1); else P.push(k);
   store.set('pins', P); draw();
-  document.querySelector('[data-pin="' + CSS.escape(k) + '"]')?.focus();
+  (document.querySelector('.lrow [data-pin="' + CSS.escape(k) + '"]') || document.querySelector('[data-pin="' + CSS.escape(k) + '"]') || document.getElementById('q')).focus({ preventScroll: true });
   toast(i >= 0 ? 'Unpinned' : 'Pinned to the top');
 }
 async function copyLink(t) {
@@ -1066,29 +1125,34 @@ const HAS_MAINT = typeof openSettings === 'function';
 
 function boot() {
   document.getElementById('app').innerHTML =
-    '<header class="top"><h1 class="brand">' + ICONS.hub() + '<span>' + esc(DASH.title) + '</span><span class="bs">' + esc(DASH.subtitle) + '</span></h1>'
-    + '<div class="search" role="search">' + UI.search + '<label class="vh" for="q">Search the tools and the catalog</label>'
-    + '<input id="q" type="search" placeholder="Search tools and links" autocomplete="off"><kbd>/</kbd></div>'
-    + (HAS_MAINT ? '<button type="button" class="gear" id="gear" aria-haspopup="dialog" title="Settings: latest versions">' + UI.gear + '<span>Settings</span></button>' : '')
-    + '</header>' + (HAS_MAINT ? '<div class="maint" id="maintBar"></div>' : '')
-    + '<div class="shell"><nav class="rail" id="rail" aria-label="Tools and catalog"></nav><main id="main" tabindex="-1"></main></div>'
+    '<header class="top"><h1 class="brand">' + ICONS.hub() + '<span>' + esc(DASH.title) + '</span></h1>'
+    + '<div class="tr"><a class="tpill" href="#pinned">' + UI.pinOn + 'Pinned <b id="pinCount"></b></a>'
+    + (HAS_MAINT ? '<button type="button" class="gear" id="gear" aria-haspopup="dialog" title="Settings: latest versions">' + UI.gear + '<span>Settings</span></button>' : '') + '</div></header>'
+    + (HAS_MAINT ? '<div class="maint" id="maintBar"></div>' : '')
+    + '<div class="hero2"><h2>' + greet() + '. What do you need?</h2><p>Every tool, tracker, form and website the office uses, one search away.</p>'
+    + '<div class="sbox" role="search">' + UI.search + '<label class="vh" for="q">Search the tools and the catalog</label>'
+    + '<input id="q" type="search" placeholder="Search tools, trackers, forms and websites" autocomplete="off"><kbd>/</kbd></div>'
+    + '<nav id="heroTabs" aria-label="Show"></nav></div>'
+    + '<main id="main" tabindex="-1"></main>'
     + '<div class="toast" id="toast" role="status" hidden></div>'
     + (HAS_MAINT ? '<dialog class="sdlg" id="sdlg" aria-labelledby="sdlgT"></dialog>' : '');
   HOOK('init');
   const q = document.getElementById('q');
   q.addEventListener('input', () => { S.q = q.value.trim(); draw(); });
   document.addEventListener('keydown', e => {
-    if (e.key === '/' && document.activeElement !== q && !/^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName)) { e.preventDefault(); q.focus(); }
+    if (e.key === '/' && document.activeElement !== q && !/^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName) && !document.querySelector('dialog[open]')) { e.preventDefault(); q.focus(); }
     else if (e.key === 'Escape' && document.activeElement === q && q.value) { q.value = ''; S.q = ''; draw(); }
   });
   document.addEventListener('click', e => {
     if (HAS_MAINT && e.target.closest('#gear')) { openSettings(); return; }
-    const v = e.target.closest('[data-view]');
-    if (v) { S.view = v.dataset.view; store.set('view', S.view); draw(); document.querySelector('[data-view="' + CSS.escape(S.view) + '"]')?.focus(); return; }
+    const tb = e.target.closest('[data-tab]');
+    if (tb) {
+      S.tab = tb.dataset.tab; store.set('tab', S.tab);
+      if (tb.classList.contains('lnk') && S.q === '') window.scrollTo(0, 0);
+      draw(); document.querySelector('.tabs [data-tab="' + CSS.escape(S.tab) + '"]')?.focus(); return;
+    }
     const s = e.target.closest('[data-status]');
     if (s) { S.status = s.dataset.status; store.set('status', S.status); draw(); document.querySelector('[data-status="' + CSS.escape(S.status) + '"]')?.focus(); return; }
-    const ct = e.target.closest('[data-ctype]');
-    if (ct) { S.ctype = ct.dataset.ctype; store.set('ctype', S.ctype); draw(); document.querySelector('[data-ctype="' + CSS.escape(S.ctype) + '"]')?.focus(); return; }
     const pn = e.target.closest('[data-pin]');
     if (pn) { togglePin(pn.dataset.pin); return; }
     const cc = e.target.closest('[data-ccopy]');

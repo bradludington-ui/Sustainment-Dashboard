@@ -242,7 +242,8 @@ function sectionForm(id) {
   const n = k ? citems().filter(c => c.category === k.id).length : 0;
   dlg('<header><h2 id="sdlgT">' + (k ? 'Change a section' : 'Add a section') + '</h2><button type="button" class="x" data-e="close" aria-label="Close">×</button></header>'
     + '<div class="eform">' + field('sName', 'Name', '<input id="sName" maxlength="60" value="' + esc(k ? k.name : '') + '" autocomplete="off">')
-    + field('sBlurb', 'Description', '<input id="sBlurb" maxlength="160" value="' + esc(k ? k.blurb : '') + '" placeholder="One line under the heading (optional)" autocomplete="off">')
+    + field('sBlurb', 'Description', '<input id="sBlurb" maxlength="160" value="' + esc(k ? k.blurb : '') + '" placeholder="Shown while editing, and when the section is empty (optional)" autocomplete="off">')
+    + '<label class="echk"><input type="checkbox" id="sTab"' + (k && k.tab ? ' checked' : '') + '> Show as a tab at the top (like Air Force and Navy), so its links are one click away</label>'
     + '<p class="eerr" id="eErr" role="alert"></p></div>'
     + '<footer>' + (k ? '<button type="button" class="btn danger" data-e="delSection" data-s="' + esc(k.id) + '">Delete section' + (n ? ' and its ' + n + ' link' + (n > 1 ? 's' : '') : '') + '</button>' : '')
     + '<span class="sp"></span><button type="button" class="btn" data-e="close">Cancel</button>'
@@ -252,8 +253,11 @@ function saveSection(id) {
   const name = document.getElementById('sName').value.trim(), blurb = document.getElementById('sBlurb').value.trim(), err = document.getElementById('eErr');
   if (!name) { err.textContent = 'Give the section a name.'; return; }
   if (cats().some(k => k.id !== id && k.name.toLowerCase() === name.toLowerCase())) { err.textContent = 'There is already a section with that name.'; return; }
-  if (id) { const k = CATALOG.categories.find(x => x.id === id); k.name = name; k.blurb = blurb; }
-  else CATALOG.categories.push({ id: slugId(name, new Set(cats().map(k => k.id))), name, blurb });
+  const tab = document.getElementById('sTab').checked;
+  let k;
+  if (id) { k = CATALOG.categories.find(x => x.id === id); k.name = name; k.blurb = blurb; }
+  else { k = { id: slugId(name, new Set(cats().map(x => x.id))), name, blurb }; CATALOG.categories.push(k); }
+  if (tab) k.tab = true; else { delete k.tab; delete k.tabName; }
   dlgClose(); edKeep();
   toast(id ? 'Section changed (not saved yet)' : 'Section added (not saved yet)');
 }
@@ -273,7 +277,7 @@ function moveSection(id, d) {
   if (i < 0 || j < 0 || j >= a.length) return;
   [a[i], a[j]] = [a[j], a[i]];
   edKeep();
-  document.querySelector('[data-e="mv"][data-s="' + CSS.escape(id) + '"][data-d="' + d + '"]')?.focus();
+  (document.querySelector('[data-e="mv"][data-s="' + CSS.escape(id) + '"][data-d="' + d + '"]:not([disabled])') || document.querySelector('[data-e="mv"][data-s="' + CSS.escape(id) + '"]:not([disabled])'))?.focus();
 }
 function edUndo() {
   const u = ED.undo; if (!u) return;
@@ -324,7 +328,7 @@ const MAINT_HOOKS = {
       const b = e.target.closest('[data-e]'); if (!b) return;
       const k = b.dataset.k, sId = b.dataset.s;
       switch (b.dataset.e) {
-        case 'toggle': ED.on = !ED.on; store.set('editing', ED.on); if (ED.on && !(S.view === 'cat' || S.view.startsWith('cat:'))) { S.view = 'cat'; store.set('view', 'cat'); } draw(); document.querySelector('[data-e="toggle"]')?.focus(); break;
+        case 'toggle': ED.on = !ED.on; store.set('editing', ED.on); if (ED.on && S.tab === 'tools') { S.tab = 'all'; store.set('tab', 'all'); } draw(); document.querySelector('[data-e="toggle"]')?.focus(); break;
         case 'save': edSave(); break;
         case 'saveTeam': edSaveTeam(); break;
         case 'import': importPick(); break;
@@ -363,17 +367,18 @@ const MAINT_HOOKS = {
   },
   rowActs(c, k) {
     if (!ED.on) return '';
-    return '<button type="button" class="btn sm ico-only" data-e="editLink" data-k="' + esc(k) + '" title="Change" aria-label="Change ' + esc(c.name) + '">' + UI.edit + '</button>'
-      + '<button type="button" class="btn sm ico-only danger" data-e="delLink" data-k="' + esc(k) + '" title="Delete" aria-label="Delete ' + esc(c.name) + '">' + UI.trash + '</button>';
+    return '<button type="button" class="lic ed" data-e="editLink" data-k="' + esc(k) + '" title="Change" aria-label="Change ' + esc(c.name) + '">' + UI.edit + '</button>'
+      + '<button type="button" class="lic ed danger" data-e="delLink" data-k="' + esc(k) + '" title="Delete" aria-label="Delete ' + esc(c.name) + '">' + UI.trash + '</button>';
   },
   sectionActs(g) {
     if (!ED.on) return '';
     const i = cats().findIndex(k => k.id === g.id);
-    return '<span class="sacts2"><button type="button" class="btn sm" data-e="addLink" data-s="' + esc(g.id) + '">+ Add link</button>'
-      + '<button type="button" class="btn sm" data-e="editSection" data-s="' + esc(g.id) + '">Change section</button>'
-      + '<button type="button" class="btn sm ico-only" data-e="mv" data-s="' + esc(g.id) + '" data-d="-1" aria-label="Move ' + esc(g.name) + ' up"' + (i > 0 ? '' : ' disabled') + '>▲</button>'
-      + '<button type="button" class="btn sm ico-only" data-e="mv" data-s="' + esc(g.id) + '" data-d="1" aria-label="Move ' + esc(g.name) + ' down"' + (i < cats().length - 1 ? '' : ' disabled') + '>▼</button></span>';
+    return '<span class="shacts"><button type="button" class="shb wide" data-e="addLink" data-s="' + esc(g.id) + '">+ Link</button>'
+      + '<button type="button" class="shb" data-e="editSection" data-s="' + esc(g.id) + '" title="Change section" aria-label="Change the section ' + esc(g.name) + '">' + UI.edit + '</button>'
+      + '<button type="button" class="shb" data-e="mv" data-s="' + esc(g.id) + '" data-d="-1" title="Move earlier" aria-label="Move ' + esc(g.name) + ' earlier"' + (i > 0 ? '' : ' disabled') + '>◀</button>'
+      + '<button type="button" class="shb" data-e="mv" data-s="' + esc(g.id) + '" data-d="1" title="Move later" aria-label="Move ' + esc(g.name) + ' later"' + (i < cats().length - 1 ? '' : ' disabled') + '>▶</button></span>';
   },
   catalogFoot: () => '<div class="addsec"><button type="button" class="btn" data-e="addSection">+ Add a section</button></div>',
+  // a new section joins the Everything tab; take the person there so they see it arrive
   footNote: () => ' Tools are listed in src/tools.js; links are edited here, with Edit catalog.',
 };

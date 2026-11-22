@@ -1,7 +1,7 @@
 'use strict';
 // Sustainment Dashboard: draws the tool list (tools.js) and the catalog of links (catalog.js) as a page. Nothing here
-// holds data; the page reads DASH and CATALOG and remembers, in this browser only, which menu entry was chosen, which
-// links are pinned and what was opened lately.
+// holds data; the page reads DASH and CATALOG and remembers, in this browser only, which tab was chosen, which links are
+// pinned and what was opened lately.
 
 const STATUS = {
   live:    { label: 'Live',           cls: 'st-live',    order: 0 },
@@ -91,7 +91,10 @@ function normCatalog(raw) {
     if (!name) { fixed.push('a section with no name was left out'); continue; }
     if (!id) id = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'section';
     while (seen.has(id)) id += '-2';
-    seen.add(id); out.categories.push({ id, name, blurb: str(k.blurb) });
+    seen.add(id);
+    const sec = { id, name, blurb: str(k.blurb) };
+    if (k.tab === true) { sec.tab = true; if (str(k.tabName)) sec.tabName = str(k.tabName).slice(0, 24); }
+    out.categories.push(sec);
   }
   for (const c of (raw && Array.isArray(raw.items) ? raw.items : [])) {
     const name = str(c && c.name);
@@ -115,11 +118,22 @@ let CATALOG = readCatalog();
 const HOOK = (name, ...a) => (typeof MAINT_HOOKS !== 'undefined' && typeof MAINT_HOOKS[name] === 'function') ? MAINT_HOOKS[name](...a) : '';
 const editing = () => !!HOOK('editing');
 
-// ---- state
+// ---- state. The page is one view with tabs (layout D, chosen by Brad 22 Nov 2026): the welcome band with the search,
+// tabs along its foot, then pinned tiles, the tools and the catalog as section cards.
+//   tab: 'all' | 'tools' | 'files' | 'web' | 'forms' | 's:<section id>' (a section marked as a tab, e.g. Air Force, Navy)
+const KIND = {   // the tabs that gather links by what they are, whatever section they sit in
+  files: { label: 'Files',    types: ['excel', 'powerpoint', 'word', 'pdf', 'folder'] },
+  web:   { label: 'Websites', types: ['web', 'sharepoint', 'teams'] },
+  forms: { label: 'Forms',    types: ['form'] },
+};
+// each section's colour: the starting sections have their own; any other takes one from the palette by its id, so it
+// keeps its colour when sections are reordered. White text clears 4.5:1 on every one.
+const SEC_COLOR = { trackers: '#1d6f42', briefings: '#b7472a', forms: '#7a4a08', websites: '#055795', af: '#25394d', navy: '#1f3f73', reference: '#5d6878', sites: '#036c70' };
+const SEC_PALETTE = ['#055795', '#1d6f42', '#7a4a08', '#8c1d3f', '#036c70', '#4b53bc', '#25394d', '#5d6878', '#b7472a'];
+const secColor = id => SEC_COLOR[id] || SEC_PALETTE[[...String(id)].reduce((h, ch) => (h * 31 + ch.charCodeAt(0)) >>> 0, 7) % SEC_PALETTE.length];
 const S = {
-  view: String(store.get('view', 'all')),   // 'all' | an area id | 'other' | 'cat' | 'cat:<category id>'
+  tab: String(store.get('tab', 'all')),
   status: store.get('status', 'all'),
-  ctype: store.get('ctype', 'all'),
   q: '',
 };
 const areas = () => DASH.areas || [];
@@ -129,11 +143,19 @@ const cats = () => CATALOG.categories || [];
 const citems = () => (CATALOG.items || []).slice();
 const catOf = c => cats().find(k => k.id === c.category);
 const ckey = c => 'c:' + (c.id || String(c.name || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''));
-const viewOk = v => v === 'all' || v === 'other' || v === 'cat' || areas().some(a => a.id === v) || (v.startsWith('cat:') && cats().some(k => 'cat:' + k.id === v));
-if (!viewOk(S.view)) S.view = 'all';
+const tabSecs = () => cats().filter(k => k.tab);
+const tabOk = v => v === 'all' || v === 'tools' || !!KIND[v] || (v.startsWith('s:') && tabSecs().some(k => 's:' + k.id === v));
+if (!tabOk(S.tab)) S.tab = 'all';
 if (S.status !== 'all' && !STATUS[S.status]) S.status = 'all';
-if (S.ctype !== 'all' && !TYPES[S.ctype]) S.ctype = 'all';
 const pins = () => { const p = store.get('pins', []); return Array.isArray(p) ? p : []; };
+// the links the tab on screen covers
+function tabLinks(tab) {
+  const all = citems();
+  if (KIND[tab]) return all.filter(c => KIND[tab].types.includes(c.type));
+  if (tab.startsWith('s:')) return all.filter(c => c.category === tab.slice(2));
+  if (tab === 'tools') return [];
+  return all;
+}
 
 function matches(t, q) {
   if (!q) return true;
@@ -151,12 +173,23 @@ function cmatches(c, q) {
   const hay = [c.name, c.note, (catOf(c) || {}).name, (TYPES[c.type] || {}).label].join(' ').toLowerCase();
   return q.toLowerCase().split(/\s+/).filter(Boolean).every(w => hay.includes(w));
 }
-function visible() {
-  return tools().filter(t => (S.status === 'all' || t.status === S.status) && matches(t, S.q))
-    .sort((a, b) => ((STATUS[a.status] || { order: 9 }).order - (STATUS[b.status] || { order: 9 }).order));
-}
+const byStatus = (a, b) => ((STATUS[a.status] || { order: 9 }).order - (STATUS[b.status] || { order: 9 }).order);
 
-// ---- drawing
+// ---- how a link opens. Office files open in the desktop app (ms-excel:ofe|u|<address>), never the browser preview;
+// the browser hands the address to Office and stays where it is, so no new tab. Everything else opens in a new tab.
+function hrefOf(c) {
+  if (!linkOk(c.url)) return null;
+  const T = TYPES[c.type] || TYPES.web, url = c.url.trim();
+  return T.app ? { href: T.app + ':ofe|u|' + url, tab: false, web: url, app: T.appName } : { href: url, tab: true };
+}
+const aOpen = (c, k, cls, inner, extra) => {
+  const h = hrefOf(c);
+  return '<a class="' + cls + '" href="' + esc(h.href) + '"' + (h.tab ? ' target="_blank" rel="noopener noreferrer"' : '') + ' data-open="' + esc(k) + '"' + (extra || '') + '>' + inner + '</a>';
+};
+const typeTile = (c, size) => { const T = TYPES[c.type] || TYPES.web; return '<span class="ctype t-' + esc(TYPES[c.type] ? c.type : 'web') + (size ? ' ' + size : '') + '" title="' + esc(T.label) + '" aria-hidden="true">' + esc(T.mark) + '</span>'; };
+const pinBtn = (c, k) => { const on = pins().includes(k); return '<button type="button" class="pin" data-pin="' + esc(k) + '" aria-pressed="' + on + '" title="' + (on ? 'Unpin' : 'Pin to the top') + '" aria-label="Pin ' + esc(c.name) + '">' + (on ? UI.pinOn : UI.pin) + '</button>'; };
+
+// ---- the tools
 function card(t) {
   const st = STATUS[t.status] || { label: t.status || 'Unknown', cls: 'st-planned' };
   const ok = linkOk(t.url);
@@ -166,8 +199,7 @@ function card(t) {
     ? '<a class="btn pri" href="' + esc(t.url.trim()) + '" target="_blank" rel="noopener noreferrer" data-open="' + esc(t.id) + '">' + UI.open + 'Open ' + esc(t.name) + '</a>'
       + '<button type="button" class="btn" data-copy="' + esc(t.id) + '">' + UI.copy + 'Copy link</button>'
     : '<span class="btn" aria-disabled="true" role="link" title="This tool’s Teams link has not been added to the tool list yet">'
-      + (t.status === 'live' ? 'Link not set' : 'Not open yet') + '</span>'
-      + (t.status === 'live' ? '<span class="hint">Add its Teams link to the tool list.</span>' : '');
+      + (t.status === 'live' ? 'Link not set' : 'Not open yet') + '</span>';
   return '<article class="card' + (ok ? '' : ' off') + '" style="--area:' + color + '" aria-labelledby="t-' + esc(t.id) + '">'
     + '<div class="head"><span class="ico">' + iconOf(t) + '</span><div><h4 id="t-' + esc(t.id) + '">' + hl(t.name) + '</h4>'
     + (t.full ? '<p class="full">' + hl(t.full) + '</p>' : '') + '</div>'
@@ -176,137 +208,128 @@ function card(t) {
     + (feats ? '<ul class="feat" aria-label="What is inside">' + feats + '</ul>' : '')
     + '<div class="acts">' + open + '</div></article>';
 }
-
-function railHtml() {
-  const all = tools();
-  const btn = (v, label, n, dot) => '<button type="button" data-view="' + esc(v) + '" aria-pressed="' + (S.view === v) + '">'
-    + (dot ? '<span class="dot" style="background:' + dot + '"></span>' : '') + esc(label)
-    + (n == null ? '' : '<span class="n">' + n + '</span>') + '</button>';
-  let h = '<h2>Tools</h2>' + btn('all', 'All tools', all.length);
-  h += '<h2>Areas</h2>' + areas().map(a => btn(a.id, a.name, all.filter(t => t.area === a.id).length, AREA_COLOR[a.id] || 'var(--a-other)')).join('');
-  const orphans = all.filter(t => !areaOf(t)).length;
-  if (orphans) h += btn('other', 'Other', orphans, 'var(--a-other)');
-  h += '<h2>Catalog</h2>' + btn('cat', 'All links', citems().length)
-    + cats().map(k => btn('cat:' + k.id, k.name, citems().filter(c => c.category === k.id).length)).join('');
-  return h;
+// the slim row on Everything: one line per tool, the whole tile opens it
+function toolTile(t) {
+  const st = STATUS[t.status] || { label: t.status, cls: 'st-planned' }, ok = linkOk(t.url);
+  const inner = '<span class="ico sm">' + iconOf(t) + '</span><span class="tt"><b>' + hl(t.name) + ' <span class="st ' + st.cls + '">' + esc(st.label) + '</span></b>'
+    + '<small>' + hl(t.full || t.tagline) + '</small></span>';
+  return ok
+    ? '<a class="ttile" style="--area:' + (AREA_COLOR[t.area] || 'var(--a-other)') + '" href="' + esc(t.url.trim()) + '" target="_blank" rel="noopener noreferrer" data-open="' + esc(t.id) + '">' + inner + '</a>'
+    : '<div class="ttile off" style="--area:' + (AREA_COLOR[t.area] || 'var(--a-other)') + '" title="' + (t.status === 'live' ? 'This tool’s Teams link has not been set yet' : 'Not open yet') + '">' + inner + '</div>';
+}
+function toolsTab() {
+  const chip = (v, l) => '<button type="button" class="chip" data-status="' + v + '" aria-pressed="' + (S.status === v) + '">' + esc(l) + '</button>';
+  const vis = tools().filter(t => (S.status === 'all' || t.status === S.status) && matches(t, S.q)).sort(byStatus);
+  let h = '<div class="bar" role="group" aria-label="Show tools by status"><span class="lbl">Show</span>' + chip('all', 'All')
+    + Object.keys(STATUS).filter(k => tools().some(t => t.status === k)).map(k => chip(k, STATUS[k].label)).join('')
+    + '<span class="shown" role="status">' + vis.length + ' of ' + tools().length + ' tools</span></div>';
+  let any = false;
+  for (const a of areas().concat([{ id: '', name: 'Other', blurb: '' }])) {
+    const list = vis.filter(t => a.id ? t.area === a.id : !areaOf(t));
+    if (!list.length) continue;
+    any = true;
+    h += '<section class="area"><header><h3><span class="sw" style="background:' + (AREA_COLOR[a.id] || 'var(--a-other)') + '"></span>' + esc(a.name) + '</h3>'
+      + (a.blurb ? '<p>' + esc(a.blurb) + '</p>' : '') + '</header><div class="grid">' + list.map(card).join('') + '</div></section>';
+  }
+  return h + (any ? '' : '<div class="empty">No tool here.</div>');
 }
 
-function heroHtml() {
-  const all = tools();
-  const n = k => all.filter(t => t.status === k).length;
-  const stat = (v, l) => '<div class="stat"><b>' + v + '</b><span>' + esc(l) + '</span></div>';
-  return '<div class="hero"><div><h2>' + esc(DASH.title) + '</h2><p>' + esc(DASH.subtitle) + '. Pick a tool to open it in a new tab.</p></div>'
-    + '<div class="stats">' + stat(n('live'), 'live') + stat(n('dev'), 'in development') + (n('planned') ? stat(n('planned'), 'planned') : '')
-    + '<button type="button" class="stat go" data-view="cat"><b>' + citems().length + '</b><span>links in the catalog ›</span></button></div></div>';
+// ---- the catalog: a section card holds its links, each a row whose name opens it
+function lrow(c) {
+  const k = ckey(c), h = hrefOf(c), T = TYPES[c.type] || TYPES.web;
+  const name = h ? aOpen(c, k, 'cname', hl(c.name), ' title="' + esc(T.app ? 'Opens in ' + T.app + ' desktop app' : 'Opens in a new tab') + '"') : '<span class="cname nolink" title="Link not set yet">' + hl(c.name) + '</span>';
+  const web = h && h.web ? '<a class="lweb" href="' + esc(h.web) + '" target="_blank" rel="noopener noreferrer" data-open="' + esc(k) + '" title="Open in the browser instead">Browser<span class="vh"> version of ' + esc(c.name) + ' (opens in a new tab)</span></a>' : '';
+  return '<li class="lrow' + (h ? '' : ' off') + '">' + typeTile(c) + '<span class="lmain">' + name
+    + '<small>' + (c.note ? hl(c.note) : esc(T.label)) + (h ? '' : ' · link not set') + '</small></span>'
+    + '<span class="lacts">' + web + (h ? '<button type="button" class="lic" data-ccopy="' + esc(k) + '" title="Copy link" aria-label="Copy the link to ' + esc(c.name) + '">' + UI.copy + '</button>' : '')
+    + HOOK('rowActs', c, k) + pinBtn(c, k) + '</span></li>';
+}
+function secCard(g, list) {
+  const color = g.id ? secColor(g.id) : '#5d6878';
+  return '<section class="scard" style="--sc:' + color + '" aria-labelledby="sc-' + esc(g.id || 'other') + '"><header><h3 id="sc-' + esc(g.id || 'other') + '">' + esc(g.name) + '</h3>'
+    + '<span class="sn">' + list.length + ' link' + (list.length === 1 ? '' : 's') + '</span>' + (g.id ? HOOK('sectionActs', g) : '') + '</header>'
+    + (g.blurb && (editing() || !list.length) ? '<p class="sblurb">' + esc(g.blurb) + '</p>' : '')
+    + (list.length ? '<ul class="llist">' + list.map(lrow).join('') + '</ul>' : '<p class="sempty">No links in this section yet.</p>') + '</section>';
+}
+function catalogCards(links, opts = {}) {
+  const ed = editing() && !S.q;
+  const groups = cats().concat([{ id: '', name: 'Other', blurb: '' }]);
+  let h = '', n = 0;
+  for (const g of groups) {
+    if (opts.only && g.id !== opts.only) continue;
+    const list = links.filter(c => g.id ? c.category === g.id : !catOf(c)).sort((a, b) => String(a.name).localeCompare(String(b.name)));
+    if (!list.length && !(ed && g.id && !opts.byKind) && !(opts.only && g.id === opts.only)) continue;
+    n++; h += secCard(g, list);
+  }
+  return n ? '<div class="mason">' + h + '</div>' : '';
 }
 
+// ---- the top of Everything: recently opened and the pinned tiles
 function recentHtml() {
   const ids = store.get('recent', []);
   const list = (Array.isArray(ids) ? ids : []).map(id => {
     if (String(id).startsWith('c:')) {
       const c = citems().find(x => ckey(x) === id);
-      if (!c || !linkOk(c.url)) return null;
-      const T = TYPES[c.type] || {};
-      return T.app ? { id, name: c.name, href: T.app + ':ofe|u|' + c.url.trim(), tab: false } : { id, name: c.name, href: c.url.trim(), tab: true };
+      return c && hrefOf(c) ? aOpen(c, id, 'rchip', esc(c.name)) : null;
     }
     const t = tools().find(x => x.id === id);
-    return t && linkOk(t.url) ? { id, name: t.name, href: t.url.trim(), tab: true } : null;
+    return t && linkOk(t.url) ? '<a class="rchip" href="' + esc(t.url.trim()) + '" target="_blank" rel="noopener noreferrer" data-open="' + esc(id) + '">' + esc(t.name) + '</a>' : null;
   }).filter(Boolean).slice(0, 6);
-  if (!list.length) return '';
-  return '<div class="recent"><span class="lbl">Recently opened</span>' + list.map(r =>
-    '<a href="' + esc(r.href) + '"' + (r.tab ? ' target="_blank" rel="noopener noreferrer"' : '') + ' data-open="' + esc(r.id) + '">' + esc(r.name) + '</a>').join('') + '</div>';
+  return list.length ? '<div class="recent"><span class="lbl">Recently opened</span>' + list.join('') + '</div>' : '';
 }
-
-// ---- the catalog rows
-function crow(c) {
-  const T = TYPES[c.type] || TYPES.web, ok = linkOk(c.url), k = ckey(c), pinned = pins().includes(k);
-  const url = ok ? c.url.trim() : '';
-  const tab = ' target="_blank" rel="noopener noreferrer"';
-  let name, acts;
-  if (!ok) {
-    name = '<span class="cname">' + hl(c.name) + '</span>';
-    acts = '<span class="btn sm" aria-disabled="true" role="link" title="This link has not been added to the catalog yet">Link not set</span>';
-  } else if (T.app) {
-    // the desktop app: no new tab (the browser hands the address to Office and stays where it is)
-    const app = T.app + ':ofe|u|' + url;
-    name = '<a class="cname" href="' + esc(app) + '" data-open="' + esc(k) + '">' + hl(c.name) + '</a>';
-    acts = '<a class="btn sm pri" href="' + esc(app) + '" data-open="' + esc(k) + '">Open in ' + esc(T.appName) + '</a>'
-      + '<a class="btn sm" href="' + esc(url) + '"' + tab + ' data-open="' + esc(k) + '">Browser<span class="vh"> (opens in a new tab)</span></a>';
-  } else {
-    name = '<a class="cname" href="' + esc(url) + '"' + tab + ' data-open="' + esc(k) + '">' + hl(c.name) + '</a>';
-    acts = '<a class="btn sm pri" href="' + esc(url) + '"' + tab + ' data-open="' + esc(k) + '">' + UI.open + 'Open<span class="vh"> (opens in a new tab)</span></a>';
-  }
-  if (ok) acts += '<button type="button" class="btn sm ico-only" data-ccopy="' + esc(k) + '" title="Copy link" aria-label="Copy the link to ' + esc(c.name) + '">' + UI.copy + '</button>';
-  acts += HOOK('rowActs', c, k);
-  acts += '<button type="button" class="btn sm ico-only pin" data-pin="' + esc(k) + '" aria-pressed="' + pinned + '" title="' + (pinned ? 'Unpin' : 'Pin to the top') + '" aria-label="Pin ' + esc(c.name) + '">' + (pinned ? UI.pinOn : UI.pin) + '</button>';
-  return '<li class="crow' + (ok ? '' : ' off') + '"><span class="ctype t-' + esc(TYPES[c.type] ? c.type : 'web') + '" title="' + esc(T.label) + '" aria-hidden="true">' + esc(T.mark) + '</span>'
-    + '<div class="cmain">' + name + '<span class="cmeta"><span class="vh">' + esc(T.label) + '. </span>' + (c.note ? hl(c.note) : '') + '</span></div>'
-    + '<span class="ctag">' + esc(T.label) + '</span><div class="cacts">' + acts + '</div></li>';
-}
-function clist(list) { return '<ul class="clist">' + list.map(crow).join('') + '</ul>'; }
 function pinnedHtml() {
   const P = pins(), list = citems().filter(c => P.includes(ckey(c))).sort((a, b) => P.indexOf(ckey(a)) - P.indexOf(ckey(b)));
-  if (!list.length) return '';
-  return '<section class="area"><header><h3>' + UI.pinOn + 'Pinned links</h3><p>Pinned in this browser. Pin or unpin any link in the catalog.</p></header>' + clist(list) + '</section>';
+  if (!list.length) return '<h2 class="sh" id="pinned">' + UI.pinOn + 'Pinned</h2><p class="pinhint">Star a link (☆) to pin it here. Pins are kept in your browser.</p>';
+  return '<h2 class="sh" id="pinned">' + UI.pinOn + 'Pinned<small>your favourites, in this browser</small></h2><ul class="fav">' + list.map(c => {
+    const k = ckey(c), inner = typeTile(c, 'lg') + '<span>' + esc(c.name) + '</span>';
+    return '<li>' + (hrefOf(c) ? aOpen(c, k, 'ftile', inner) : '<span class="ftile off" title="Link not set yet">' + inner + '</span>')
+      + '<button type="button" class="funpin" data-pin="' + esc(k) + '" aria-pressed="true" aria-label="Unpin ' + esc(c.name) + '" title="Unpin">×</button></li>';
+  }).join('') + '</ul>';
 }
-function catalogHtml() {
-  const one = S.view.startsWith('cat:') ? S.view.slice(4) : '';
-  const all = citems().filter(c => !one || c.category === one);
-  const vis = all.filter(c => (S.ctype === 'all' || c.type === S.ctype) && cmatches(c, S.q));
-  const chip = (v, l) => '<button type="button" class="chip" data-ctype="' + v + '" aria-pressed="' + (S.ctype === v) + '">' + esc(l) + '</button>';
-  const present = Object.keys(TYPES).filter(k => all.some(c => c.type === k));
-  let h = '<div class="hero slim"><div><h2>Catalog</h2><p>Links to the trackers, briefings and references used around the office. Office files open in their desktop app.</p></div>'
-    + '<div class="stats"><div class="stat"><b>' + citems().length + '</b><span>links</span></div><div class="stat"><b>' + cats().length + '</b><span>sections</span></div></div></div>';
-  if (!one && !S.q) h += pinnedHtml();
-  h += '<div class="bar" role="group" aria-label="Show by type"><span class="lbl">Type</span>' + chip('all', 'All') + present.map(k => chip(k, TYPES[k].label)).join('')
-    + '<span class="shown" role="status">' + vis.length + ' of ' + all.length + ' links' + (S.q ? ' matching “' + esc(S.q) + '”' : '') + '</span></div>';
-  const groups = one ? cats().filter(k => k.id === one) : cats().concat([{ id: '', name: 'Other', blurb: '' }]);
-  const ed = editing() && !S.q && S.ctype === 'all';
-  let any = false;
-  for (const g of groups) {
-    const list = vis.filter(c => g.id ? c.category === g.id : !catOf(c)).sort((a, b) => String(a.name).localeCompare(String(b.name)));
-    // an empty section shows while editing (so a link can be added to it) and when it is the section chosen in the menu
-    if (!list.length && !(ed && g.id) && !(one && g.id === one && !S.q && S.ctype === 'all')) continue;
-    any = true;
-    h += '<section class="area"><header><h3>' + esc(g.name) + ' <span class="hn">' + list.length + '</span></h3>' + (g.blurb ? '<p>' + esc(g.blurb) + '</p>' : '')
-      + (g.id ? HOOK('sectionActs', g) : '') + '</header>'
-      + (list.length ? clist(list) : '<div class="empty sm">No links in this section yet.</div>') + '</section>';
-  }
-  if (!any) h += '<div class="empty">' + (S.q ? 'No link matches “' + esc(S.q) + '”. Try fewer words, or clear the search (Esc).' : 'No links here yet.') + '</div>';
-  if (ed && !one) h += HOOK('catalogFoot');
+
+// ---- the welcome band and its tabs
+function greet() { const h = new Date().getHours(); return h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening'; }
+function tabsHtml() {
+  const t = (v, label, n) => '<button type="button" class="tab" data-tab="' + esc(v) + '" aria-pressed="' + (S.tab === v) + '">' + esc(label) + '<i>' + n + '</i></button>';
+  return '<div class="tabs" role="group" aria-label="Show">' + t('all', 'Everything', tools().length + citems().length) + t('tools', 'Tools', tools().length)
+    + Object.keys(KIND).map(k => t(k, KIND[k].label, tabLinks(k).length)).join('')
+    + tabSecs().map(g => t('s:' + g.id, g.tabName || g.name.replace(/\s+employees$/i, ''), citems().filter(c => c.category === g.id).length)).join('') + '</div>';
+}
+
+function searchHtml() {
+  const scope = S.tab === 'all' ? 'everything' : S.tab === 'tools' ? 'the tools' : 'this tab';
+  const ts = (S.tab === 'all' || S.tab === 'tools') ? tools().filter(t => matches(t, S.q)).sort(byStatus) : [];
+  const ls = tabLinks(S.tab).filter(c => cmatches(c, S.q));
+  let h = '<p class="shown big" role="status">' + (ts.length + ls.length) + ' result' + (ts.length + ls.length === 1 ? '' : 's') + ' for “' + esc(S.q) + '” in ' + scope
+    + (S.tab !== 'all' ? ' · <button type="button" class="lnk" data-tab="all">search everything</button>' : '') + '</p>';
+  if (ts.length) h += '<h2 class="sh">Tools</h2><div class="trow">' + ts.map(toolTile).join('') + '</div>';
+  if (ls.length) h += '<h2 class="sh">Links</h2>' + catalogCards(ls, { byKind: true });
+  if (!ts.length && !ls.length) h += '<div class="empty">Nothing matches. Try fewer words, or clear the search (Esc).</div>';
   return h;
 }
 
 function mainHtml() {
-  if (S.view === 'cat' || S.view.startsWith('cat:')) return catalogHtml();
-  const vis = visible();
-  const chip = (v, l) => '<button type="button" class="chip" data-status="' + v + '" aria-pressed="' + (S.status === v) + '">' + esc(l) + '</button>';
-  let h = '';
-  if (S.view === 'all' && !S.q) h += heroHtml() + recentHtml() + pinnedHtml();
-  const inView = vis.filter(t => S.view === 'all' || (S.view === 'other' ? !areaOf(t) : t.area === S.view));
-  h += '<div class="bar" role="group" aria-label="Show by status"><span class="lbl">Show</span>' + chip('all', 'All')
-    + Object.keys(STATUS).filter(k => tools().some(t => t.status === k)).map(k => chip(k, STATUS[k].label)).join('')
-    + '<span class="shown" role="status">' + inView.length + ' of ' + tools().length + ' tools' + (S.q ? ' matching “' + esc(S.q) + '”' : '') + '</span></div>';
-  const groups = S.view === 'all' ? areas().concat([{ id: 'other', name: 'Other', blurb: '' }]) : [S.view === 'other' ? { id: 'other', name: 'Other', blurb: '' } : areas().find(a => a.id === S.view)];
-  let any = false;
-  for (const a of groups) {
-    const list = inView.filter(t => a.id === 'other' ? !areaOf(t) : t.area === a.id);
-    if (!list.length) continue;
-    any = true;
-    h += '<section class="area" aria-labelledby="a-' + esc(a.id) + '"><header><h3 id="a-' + esc(a.id) + '"><span class="sw" style="background:' + (AREA_COLOR[a.id] || 'var(--a-other)') + '"></span>'
-      + esc(a.name) + '</h3>' + (a.blurb ? '<p>' + esc(a.blurb) + '</p>' : '') + '</header><div class="grid">' + list.map(card).join('') + '</div></section>';
+  if (S.q) return searchHtml();
+  if (S.tab === 'tools') return toolsTab();
+  if (KIND[S.tab]) {
+    const ls = tabLinks(S.tab);
+    return '<h2 class="sh">' + esc(KIND[S.tab].label) + '<small>' + ls.length + ' link' + (ls.length === 1 ? '' : 's') + ', by section</small></h2>'
+      + (catalogCards(ls, { byKind: true }) || '<div class="empty">No ' + esc(KIND[S.tab].label.toLowerCase()) + ' in the catalog yet.</div>');
   }
-  // a search from the home view looks through the catalog too
-  const cm = S.view === 'all' && S.q ? citems().filter(c => cmatches(c, S.q)) : [];
-  if (!any && !cm.length) h += '<div class="empty">' + (S.q ? 'Nothing matches “' + esc(S.q) + '”. Try fewer words, or clear the search (Esc).' : 'No tools here yet.') + '</div>';
-  if (cm.length) h += '<section class="area"><header><h3>From the catalog <span class="hn">' + cm.length + '</span></h3></header>' + clist(cm) + '</section>';
-  return h;
+  if (S.tab.startsWith('s:')) return catalogCards(tabLinks(S.tab), { only: S.tab.slice(2) });
+  // Everything
+  const T = tools().slice().sort(byStatus);
+  return recentHtml() + pinnedHtml()
+    + '<h2 class="sh">Tools<small><button type="button" class="lnk" data-tab="tools">all tools ›</button></small></h2><div class="trow">' + T.map(toolTile).join('') + '</div>'
+    + '<h2 class="sh">Catalog<small>' + cats().length + ' sections · ' + citems().length + ' links</small></h2>'
+    + (catalogCards(citems()) || '<div class="empty">No links yet.</div>') + (editing() ? HOOK('catalogFoot') : '');
 }
 
 function draw() {
-  if (!viewOk(S.view)) S.view = 'cat';   // a section deleted while it was open
+  if (!tabOk(S.tab)) S.tab = 'all';   // a section deleted, or no longer a tab, while it was open
   HOOK('drawBar');
-  document.getElementById('rail').innerHTML = railHtml();
+  document.getElementById('heroTabs').innerHTML = tabsHtml();
+  document.getElementById('pinCount').textContent = pins().filter(k => citems().some(c => ckey(c) === k)).length;
   document.getElementById('main').innerHTML = mainHtml() + '<footer class="foot">This page holds no data: it is a list of links. Pins and recently opened are kept in your browser only.' + HOOK('footNote') + '</footer>';
 }
 
@@ -327,7 +350,7 @@ function togglePin(k) {
   const P = pins(), i = P.indexOf(k);
   if (i >= 0) P.splice(i, 1); else P.push(k);
   store.set('pins', P); draw();
-  document.querySelector('[data-pin="' + CSS.escape(k) + '"]')?.focus();
+  (document.querySelector('.lrow [data-pin="' + CSS.escape(k) + '"]') || document.querySelector('[data-pin="' + CSS.escape(k) + '"]') || document.getElementById('q')).focus({ preventScroll: true });
   toast(i >= 0 ? 'Unpinned' : 'Pinned to the top');
 }
 async function copyLink(t) {
@@ -343,29 +366,34 @@ const HAS_MAINT = typeof openSettings === 'function';
 
 function boot() {
   document.getElementById('app').innerHTML =
-    '<header class="top"><h1 class="brand">' + ICONS.hub() + '<span>' + esc(DASH.title) + '</span><span class="bs">' + esc(DASH.subtitle) + '</span></h1>'
-    + '<div class="search" role="search">' + UI.search + '<label class="vh" for="q">Search the tools and the catalog</label>'
-    + '<input id="q" type="search" placeholder="Search tools and links" autocomplete="off"><kbd>/</kbd></div>'
-    + (HAS_MAINT ? '<button type="button" class="gear" id="gear" aria-haspopup="dialog" title="Settings: latest versions">' + UI.gear + '<span>Settings</span></button>' : '')
-    + '</header>' + (HAS_MAINT ? '<div class="maint" id="maintBar"></div>' : '')
-    + '<div class="shell"><nav class="rail" id="rail" aria-label="Tools and catalog"></nav><main id="main" tabindex="-1"></main></div>'
+    '<header class="top"><h1 class="brand">' + ICONS.hub() + '<span>' + esc(DASH.title) + '</span></h1>'
+    + '<div class="tr"><a class="tpill" href="#pinned">' + UI.pinOn + 'Pinned <b id="pinCount"></b></a>'
+    + (HAS_MAINT ? '<button type="button" class="gear" id="gear" aria-haspopup="dialog" title="Settings: latest versions">' + UI.gear + '<span>Settings</span></button>' : '') + '</div></header>'
+    + (HAS_MAINT ? '<div class="maint" id="maintBar"></div>' : '')
+    + '<div class="hero2"><h2>' + greet() + '. What do you need?</h2><p>Every tool, tracker, form and website the office uses, one search away.</p>'
+    + '<div class="sbox" role="search">' + UI.search + '<label class="vh" for="q">Search the tools and the catalog</label>'
+    + '<input id="q" type="search" placeholder="Search tools, trackers, forms and websites" autocomplete="off"><kbd>/</kbd></div>'
+    + '<nav id="heroTabs" aria-label="Show"></nav></div>'
+    + '<main id="main" tabindex="-1"></main>'
     + '<div class="toast" id="toast" role="status" hidden></div>'
     + (HAS_MAINT ? '<dialog class="sdlg" id="sdlg" aria-labelledby="sdlgT"></dialog>' : '');
   HOOK('init');
   const q = document.getElementById('q');
   q.addEventListener('input', () => { S.q = q.value.trim(); draw(); });
   document.addEventListener('keydown', e => {
-    if (e.key === '/' && document.activeElement !== q && !/^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName)) { e.preventDefault(); q.focus(); }
+    if (e.key === '/' && document.activeElement !== q && !/^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName) && !document.querySelector('dialog[open]')) { e.preventDefault(); q.focus(); }
     else if (e.key === 'Escape' && document.activeElement === q && q.value) { q.value = ''; S.q = ''; draw(); }
   });
   document.addEventListener('click', e => {
     if (HAS_MAINT && e.target.closest('#gear')) { openSettings(); return; }
-    const v = e.target.closest('[data-view]');
-    if (v) { S.view = v.dataset.view; store.set('view', S.view); draw(); document.querySelector('[data-view="' + CSS.escape(S.view) + '"]')?.focus(); return; }
+    const tb = e.target.closest('[data-tab]');
+    if (tb) {
+      S.tab = tb.dataset.tab; store.set('tab', S.tab);
+      if (tb.classList.contains('lnk') && S.q === '') window.scrollTo(0, 0);
+      draw(); document.querySelector('.tabs [data-tab="' + CSS.escape(S.tab) + '"]')?.focus(); return;
+    }
     const s = e.target.closest('[data-status]');
     if (s) { S.status = s.dataset.status; store.set('status', S.status); draw(); document.querySelector('[data-status="' + CSS.escape(S.status) + '"]')?.focus(); return; }
-    const ct = e.target.closest('[data-ctype]');
-    if (ct) { S.ctype = ct.dataset.ctype; store.set('ctype', S.ctype); draw(); document.querySelector('[data-ctype="' + CSS.escape(S.ctype) + '"]')?.focus(); return; }
     const pn = e.target.closest('[data-pin]');
     if (pn) { togglePin(pn.dataset.pin); return; }
     const cc = e.target.closest('[data-ccopy]');

@@ -1,7 +1,8 @@
 # Sustainment Dashboard
 
-The entry point for every sustainment tool: one page with a card per tool, grouped by area, searchable, that opens
-each tool from its link in Teams. It wears the same Harbor colours, navy menu and ring-and-satellite marks as ORBIT and APEX.
+The entry point for every sustainment tool and the office's most-used files, websites and forms: a welcome band with one
+search box and tabs (Everything, Tools, Files, Websites, Forms, Air Force, Navy), your pinned links as tiles, the tools,
+and the catalog as colour-headed section cards. It wears the same Harbor colours, navy menu and ring-and-satellite marks as ORBIT and APEX.
 
 **It holds no data.** It is a list of links. It remembers, in your browser only, which links you pinned and opened lately.
 
@@ -24,8 +25,9 @@ Everything the page shows comes from one file, **`src/tools.js`**. Its header ex
 
 ## The catalog: files, websites and forms
 
-Under **Catalog** in the menu: trackers, briefings, forms, job websites, Air Force and Navy employee links, references
-and team sites, each in a section. Excel, PowerPoint and Word links open in the desktop app (**Open in Excel**), not the
+On the page under **Catalog**: trackers, briefings, forms, job websites, Air Force and Navy employee links, references
+and team sites, each a section card. The **Files**, **Websites** and **Forms** tabs gather links by what they are,
+whatever section they sit in; a section marked **Show as a tab** (Air Force and Navy to start) gets a tab of its own. Excel, PowerPoint and Word links open in the desktop app (**Open in Excel**), not the
 browser preview; **Browser** opens the web version; everything else opens in a new tab. Anyone can **pin** the links they
 use most (kept in their own browser), and the search box covers tools and the catalog together.
 
@@ -35,7 +37,8 @@ In your **maintainer copy** (below), press **Edit catalog**:
 
 - **+ Add link** on a section, or the pencil on a link to change it. Paste the address from Teams or SharePoint
   (**⋯ › Copy link**); the type is guessed from it. The bin deletes a link; **Undo delete** puts it back.
-- **+ Add a section**, **Change section** (rename it, describe it, or delete it with its links), and ▲▼ to reorder.
+- **+ Add a section**; on a section's header, **+ Link**, the pencil (rename, describe, show as a tab, or delete it with
+  its links) and ◀ ▶ to reorder.
 - Every edit is kept in your browser at once, so a closed tab loses nothing; the bar says **Unsaved changes**.
 - **Save** writes your maintainer file. **Save team copy…** writes `sustainment-dashboard.html` with the same links and
   no editor: upload that one to Teams. A ● on the button means the team copy is out of date.
@@ -71,4 +74,5 @@ so the panel says what is on Teams.
 | `src/shell.html` | The page around them, with its Content-Security-Policy. |
 | `build.mjs` | Puts the four together into one file. |
 | `tools/check.mjs` | `npm run check`. |
+| `tools/editor-test.mjs` | `npm test`: the page driven in Chromium, end to end (editor, saving, tabs, search, pins). |
 | `tools/shoot.mjs` | `npm run shoot -- out.png [--links] [--catalog] [--maint [--settings]] [--full] [--width N]`: a screenshot in Chromium. |

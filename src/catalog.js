@@ -16,14 +16,16 @@
 //
 // `npm run check` refuses an unknown category or type, a repeated name, and a link that is not https.
 
+// A section with tab: true is also a tab at the top of the page (tabName is the tab's label; without one, the name).
+//
 const CATALOG = {
   categories: [
     { id: 'trackers',  name: 'Trackers',             blurb: 'Working spreadsheets the office keeps current.' },
     { id: 'briefings', name: 'Briefings & slides',   blurb: 'Recurring reviews and the decks behind them.' },
     { id: 'forms',     name: 'Forms',                blurb: 'Forms to fill in, and where to send them.' },
     { id: 'websites',  name: 'Job websites',         blurb: 'Websites used for the work itself.' },
-    { id: 'af',        name: 'Air Force employees',  blurb: 'Pay, personnel, training and support for Air Force employees.' },
-    { id: 'navy',      name: 'Navy employees',       blurb: 'Pay, personnel, training and support for Navy employees.' },
+    { id: 'af',        name: 'Air Force employees',  blurb: 'Pay, personnel, training and support for Air Force employees.', tab: true, tabName: 'Air Force' },
+    { id: 'navy',      name: 'Navy employees',       blurb: 'Pay, personnel, training and support for Navy employees.',      tab: true, tabName: 'Navy' },
     { id: 'reference', name: 'Reference',            blurb: 'Guidance, templates and policy.' },
     { id: 'sites',     name: 'Sites & dashboards',   blurb: 'Team sites, channels and other dashboards in Teams.' },
   ],

@@ -43,4 +43,10 @@ dashboard, and more). See README.md for what it is and how it is updated.
   `--steal`, ...). A status is always its colour AND its word. Marks are ORBIT's family: a ring, a satellite at two
   o'clock, and something inside.
 - **Escape everything drawn** (`esc()` in `src/app.js`), even from the tool list: a quote in a tagline must not break a card.
-- Check appearance with `npm run shoot` at 1440, 1366 and a phone width (420) before calling a change done.
+- **The layout is D** (Brad, 22 Nov 2026, from four mock-ups): a welcome band with the search and the tabs at its foot,
+  pinned tiles, a slim tools row, then the catalog as section cards in columns. Tabs are buttons with `aria-pressed`,
+  never ARIA tabs. `KIND` in app.js maps Files, Websites and Forms to link types; a section with `tab: true` is a tab.
+- **`npm test`** drives the page in Chromium end to end (`tools/editor-test.mjs`); run it with `npm run check` before a
+  commit that touches app.js or maint.js.
+- Check appearance with `npm run shoot` at 1440, 1366 and a phone width (420) before calling a change done
+  (`--catalog --links` fills it with stand-in links and pins).
