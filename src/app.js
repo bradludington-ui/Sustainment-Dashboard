@@ -54,6 +54,8 @@ const ICONS = {
 const UI = {
   search: glyph('<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>'),
   open: glyph('<path d="M14 4h6v6M20 4l-9 9"/><path d="M19 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h5"/>'),
+  download: glyph('<path d="M12 4v11M7 10l5 5 5-5"/><path d="M5 20h14"/>'),
+  gear: glyph('<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>'),
   copy: glyph('<rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a1 1 0 0 1 1-1h10"/>'),
 };
 const iconOf = t => (ICONS[t.icon] || ICONS.grid)();
@@ -190,13 +192,20 @@ async function copyLink(t) {
   window.prompt('Copy the link to ' + t.name + ':', u);
 }
 
+
+// the maintainer copy adds src/maint.js (the Settings panel); the team copy has none of it, so this is false there
+const HAS_MAINT = typeof openSettings === 'function';
+
 function boot() {
   document.getElementById('app').innerHTML =
     '<header class="top"><h1 class="brand">' + ICONS.hub() + '<span>' + esc(DASH.title) + '</span><span class="bs">' + esc(DASH.subtitle) + '</span></h1>'
     + '<div class="search" role="search">' + UI.search + '<label class="vh" for="q">Search the tools</label>'
-    + '<input id="q" type="search" placeholder="Search tools" autocomplete="off"><kbd>/</kbd></div></header>'
+    + '<input id="q" type="search" placeholder="Search tools" autocomplete="off"><kbd>/</kbd></div>'
+    + (HAS_MAINT ? '<button type="button" class="gear" id="gear" aria-haspopup="dialog" title="Settings: latest versions">' + UI.gear + '<span>Settings</span></button>' : '')
+    + '</header>' + (HAS_MAINT ? '<div class="maint" role="note">Maintainer copy: keep this file to yourself. The team opens sustainment-dashboard.html.</div>' : '')
     + '<div class="shell"><nav class="rail" id="rail" aria-label="Areas"></nav><main id="main" tabindex="-1"></main></div>'
-    + '<div class="toast" id="toast" role="status" hidden></div>';
+    + '<div class="toast" id="toast" role="status" hidden></div>'
+    + (HAS_MAINT ? '<dialog class="sdlg" id="sdlg" aria-labelledby="sdlgT"></dialog>' : '');
   const q = document.getElementById('q');
   q.addEventListener('input', () => { S.q = q.value.trim(); draw(); });
   document.addEventListener('keydown', e => {
@@ -204,6 +213,7 @@ function boot() {
     else if (e.key === 'Escape' && document.activeElement === q && q.value) { q.value = ''; S.q = ''; draw(); }
   });
   document.addEventListener('click', e => {
+    if (HAS_MAINT && e.target.closest('#gear')) { openSettings(); return; }
     const v = e.target.closest('[data-view]');
     if (v) { S.view = v.dataset.view; store.set('view', S.view); draw(); document.querySelector('[data-view="' + CSS.escape(S.view) + '"]')?.focus(); return; }
     const s = e.target.closest('[data-status]');

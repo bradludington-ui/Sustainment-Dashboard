@@ -4,11 +4,12 @@
 //  2. the tool list is well formed: known areas, statuses and icons, unique ids, every link https or empty
 //  3. the page loads nothing from anywhere: no external script, stylesheet, image or font, and the CSP is in place
 //  4. the scripts parse
+//  5. the team copy carries no GitHub address and no source list; the maintainer copy's source list is well formed
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import vm from 'node:vm';
-import { assemble, OUT } from '../build.mjs';
+import { assemble, OUT, OUT_MAINT } from '../build.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const fails = [];
@@ -18,6 +19,9 @@ const fail = m => fails.push(m);
 let built = '';
 try { built = readFileSync(OUT, 'utf8'); } catch {}
 if (built !== assemble()) fail('sustainment-dashboard.html is not what src/ builds (run npm run build)');
+let builtM = '';
+try { builtM = readFileSync(OUT_MAINT, 'utf8'); } catch {}
+if (builtM !== assemble({ maintainer: true })) fail('maintainer/sustainment-dashboard-maintainer.html is not what src/ builds (run npm run build)');
 
 // 2
 const ctx = {};
@@ -63,5 +67,24 @@ for (const m of built.matchAll(/<script>([\s\S]*?)<\/script>/g)) {
   try { new vm.Script(m[1]); } catch (e) { fail('a script does not parse: ' + e.message); }
 }
 
+// 5
+if (/github/i.test(built)) fail('the team copy (sustainment-dashboard.html) mentions GitHub: download links belong in src/sources.js, which only the maintainer copy carries');
+if (/\bSOURCES\b|(sources|maint)\.js =====|function openSettings|function settingsHtml/.test(built)) fail('the team copy carries the source list or the Settings panel');
+for (const m of builtM.matchAll(/<script>([\s\S]*?)<\/script>/g)) {
+  try { new vm.Script(m[1]); } catch (e) { fail('a maintainer script does not parse: ' + e.message); }
+}
+const sx = {};
+try { vm.runInNewContext(readFileSync(join(ROOT, 'src/sources.js'), 'utf8') + '\n;this.SOURCES = SOURCES;', sx); } catch (e) { fail('src/sources.js does not run: ' + e.message); }
+if (sx.SOURCES && D) {
+  const known = new Set(['hub', ...(D.tools || []).map(t => t.id)]);
+  for (const [k, v] of Object.entries(sx.SOURCES)) {
+    if (!known.has(k)) fail('src/sources.js: "' + k + '" is no tool id in tools.js (nor "hub")');
+    if (!/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(v.repo || '')) fail('src/sources.js: ' + k + '.repo must be owner/name');
+    if (!v.path || /\.\.|^\//.test(v.path) || !/^[A-Za-z0-9_./-]+$/.test(v.path)) fail('src/sources.js: ' + k + '.path must be a file path from the repository root');
+    if (v.branch && !/^[A-Za-z0-9_./-]+$/.test(v.branch)) fail('src/sources.js: ' + k + '.branch is not a branch name');
+  }
+}
+
 if (fails.length) { console.error('CHECK FAILED\n - ' + fails.join('\n - ')); process.exit(1); }
-console.log('check passed: ' + (D.tools || []).length + ' tools, ' + (D.areas || []).length + ' areas, ' + (D.links || []).length + ' quick links');
+console.log('check passed: ' + (D.tools || []).length + ' tools, ' + (D.areas || []).length + ' areas, ' + (D.links || []).length + ' quick links; '
+  + Object.keys(sx.SOURCES || {}).length + ' sources in the maintainer copy, none in the team copy');

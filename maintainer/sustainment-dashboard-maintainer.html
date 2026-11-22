@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; base-uri 'none'; form-action 'none'">
+<title>Sustainment Dashboard (maintainer)</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns=%22http://www.w3.org/2000/svg%22%20viewBox=%220%200%20100%20100%22%3E%3Cmask%20id=%22f%22%3E%3Crect%20width=%22100%22%20height=%22100%22%20fill=%22%23fff%22/%3E%3Ccircle%20cx=%2280.21%22%20cy=%2226.4%22%20r=%2216.3%22%20fill=%22%23000%22/%3E%3C/mask%3E%3Ccircle%20cx=%2250%22%20cy=%2250%22%20r=%2238.33%22%20fill=%22none%22%20stroke=%22%2325394d%22%20stroke-width=%2213%22%20mask=%22url(%23f)%22/%3E%3Cg%20fill=%22%2325394d%22%3E%3Crect%20x=%2234%22%20y=%2234%22%20width=%2214%22%20height=%2214%22%20rx=%223%22/%3E%3Crect%20x=%2252%22%20y=%2234%22%20width=%2214%22%20height=%2214%22%20rx=%223%22/%3E%3Crect%20x=%2234%22%20y=%2252%22%20width=%2214%22%20height=%2214%22%20rx=%223%22/%3E%3Crect%20x=%2252%22%20y=%2252%22%20width=%2214%22%20height=%2214%22%20rx=%223%22/%3E%3C/g%3E%3Ccircle%20cx=%2280.21%22%20cy=%2226.4%22%20r=%2210.75%22%20fill=%22%23055795%22/%3E%3C/svg%3E">
+<style>
+/* Sustainment Dashboard: the look. It wears ORBIT's Harbor palette, as APEX does (slate ground, dark ink, navy menu
+   down the left, blue accent), with APEX's own token names so a rule reads the same in both. Nothing is loaded from
+   anywhere: the CSP allows no font or stylesheet but this. A status is always its colour AND its word. */
+:root{
+  --sbg:#c4ccd6; --sbg2:#d9dfe7; --spanel:#e6eaf0; --spanel2:#c9d0da; --sline:#aeb7c3; --sedge:#627185;
+  --sink:#182029; --smut:#3b4553; --steal:#055795; --slink:#0b4f8a; --ssel:#c3d4e6; --soft:#d3e1ef;
+  --acc:#25394d; --onAcc:#eaf0f6; --accHover:#3a536c;
+  --card:#f5f7fa; --cardLine:#b9c2ce;
+  --green:#00753a; --greenBg:#dcefe3; --ochre:#7a4a08; --ochreBg:#f3e6cf; --plan:#46505e; --planBg:#dde2e8;
+  --a-plan:#055795; --a-exec:#2f6f4f; --a-contracts:#7a4a08; --a-other:#627185;
+  --r:12px; --shadow:0 1px 2px rgba(24,32,41,.12),0 2px 8px rgba(24,32,41,.08);
+  --shadowUp:0 4px 10px rgba(24,32,41,.16),0 10px 24px rgba(24,32,41,.12);
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%;scroll-padding-top:90px}
+body{margin:0;background:var(--sbg);color:var(--sink);font:14px/1.45 Calibri,Carlito,"Segoe UI",Arial,sans-serif;min-height:100vh}
+.boot{padding:24px}
+.vh{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+:focus-visible{outline:3px solid var(--acc);outline-offset:2px}
+.skip{position:absolute;left:8px;top:-60px;z-index:60;padding:8px 14px;background:var(--acc);color:var(--onAcc);font-weight:700;border-radius:0 0 8px 8px}
+.skip:focus{top:0;outline:3px solid var(--onAcc);outline-offset:-4px}
+button,input{font:inherit;color:inherit}
+
+/* the top bar */
+header.top{position:sticky;top:0;z-index:30;display:flex;flex-wrap:wrap;align-items:center;gap:10px 18px;padding:10px 20px;
+  background:var(--sbg2);border-bottom:1px solid var(--sline);box-shadow:0 1px 3px rgba(24,32,41,.2)}
+.brand{display:flex;align-items:center;gap:10px;margin:0;font-size:20px;font-weight:800;letter-spacing:.02em;white-space:nowrap}
+.brand svg{width:34px;height:34px;flex:none;color:var(--sink);--mark-accent:var(--steal)}
+.brand .bs{font-size:13px;font-weight:400;letter-spacing:0;color:var(--smut);padding-left:10px;border-left:1px solid var(--sedge)}
+.search{flex:1 1 280px;max-width:520px;margin-left:auto;position:relative}
+.search input{width:100%;padding:8px 12px 8px 36px;border:1px solid var(--sedge);border-radius:999px;background:#fff;font-size:14px}
+.search input::placeholder{color:#5d6878}
+.search svg{position:absolute;left:12px;top:50%;width:16px;height:16px;transform:translateY(-50%);color:var(--smut);pointer-events:none}
+.search kbd{position:absolute;right:10px;top:50%;transform:translateY(-50%);font:12px/1 Calibri,Carlito,"Segoe UI",Arial,sans-serif;
+  padding:3px 7px;border:1px solid var(--sline);border-radius:5px;background:var(--spanel);color:var(--smut)}
+.search input:focus + kbd,.search input:not(:placeholder-shown) + kbd{display:none}
+
+/* the shell: the menu down the left, the tools beside it */
+.shell{display:flex;align-items:flex-start;min-width:0}
+nav.rail{flex:0 0 220px;position:sticky;top:76px;margin:14px 0 14px 0;padding:12px 8px;background:var(--acc);color:var(--onAcc);
+  border-radius:0 var(--r) var(--r) 0;max-height:calc(100vh - 90px);overflow-y:auto}
+nav.rail h2{margin:12px 10px 6px;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#b8c6d6}
+nav.rail h2:first-child{margin-top:2px}
+nav.rail button{display:flex;align-items:center;gap:8px;width:100%;min-height:34px;padding:6px 10px;border:0;border-radius:8px;
+  background:none;color:var(--onAcc);text-align:left;cursor:pointer}
+nav.rail button:hover{background:var(--accHover);color:#fff}
+nav.rail button[aria-pressed=true]{background:var(--onAcc);color:var(--acc);font-weight:700;box-shadow:inset 3px 0 0 var(--steal)}
+nav.rail button .n{margin-left:auto;min-width:24px;padding:0 7px;border-radius:999px;background:rgba(234,240,246,.16);font-size:12px;text-align:center}
+nav.rail button[aria-pressed=true] .n{background:var(--ssel);color:var(--acc)}
+nav.rail .dot{width:9px;height:9px;border-radius:50%;flex:none}
+nav.rail :focus-visible{outline-color:var(--onAcc);outline-offset:-3px}
+main{flex:1 1 0;min-width:0;padding:18px 24px 40px}
+main:focus{outline:none}
+
+/* the welcome band */
+.hero{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px 24px;margin:0 0 18px;padding:20px 24px;
+  border-radius:var(--r);background:linear-gradient(120deg,var(--acc) 0%,#2f4b66 60%,#355a7d 100%);color:var(--onAcc);box-shadow:var(--shadow)}
+.hero h2{margin:0 0 4px;font-size:24px;font-weight:700;color:#fff}
+.hero p{margin:0;color:#cfdae6;max-width:60ch}
+.stats{display:flex;flex-wrap:wrap;gap:10px}
+.stat{min-width:104px;padding:8px 14px;border-radius:10px;background:rgba(234,240,246,.1);border:1px solid rgba(234,240,246,.22)}
+.stat b{display:block;font-size:22px;line-height:1.1;color:#fff;font-variant-numeric:tabular-nums}
+.stat span{font-size:12px;color:#cfdae6}
+
+/* the status filter */
+.bar{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:0 0 6px}
+.bar .lbl{font-weight:700;color:var(--slink);margin-right:2px}
+.chip{display:inline-flex;align-items:center;gap:6px;min-height:30px;padding:3px 12px;border:1px solid var(--sedge);border-radius:999px;background:var(--card);cursor:pointer}
+.chip:hover{background:var(--ssel)}
+.chip[aria-pressed=true]{background:var(--acc);border-color:var(--acc);color:var(--onAcc);font-weight:700}
+.shown{margin-left:auto;color:var(--smut);font-size:13px}
+
+/* sections and cards */
+section.area{margin:22px 0 0}
+section.area > header{display:flex;align-items:baseline;flex-wrap:wrap;gap:4px 12px;margin:0 0 10px;padding-bottom:6px;border-bottom:2px solid var(--sline)}
+section.area h3{margin:0;font-size:17px;color:var(--acc)}
+section.area h3 .sw{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:8px;vertical-align:1px}
+section.area > header p{margin:0;color:var(--smut);font-size:13px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,300px),1fr));gap:16px}
+.card{position:relative;display:flex;flex-direction:column;gap:10px;padding:16px 18px 16px;border-radius:var(--r);background:var(--card);
+  border:1px solid var(--cardLine);box-shadow:var(--shadow);transition:transform .15s ease,box-shadow .15s ease;overflow:hidden}
+.card::before{content:"";position:absolute;left:0;top:0;right:0;height:4px;background:var(--area,var(--a-other))}
+.card:hover{transform:translateY(-2px);box-shadow:var(--shadowUp)}
+.card.off{opacity:.92}
+.card .head{display:flex;align-items:flex-start;gap:12px}
+.ico{flex:none;display:grid;place-items:center;width:46px;height:46px;border-radius:11px;background:var(--acc);color:var(--onAcc);--mark-accent:#8fc1ec}
+.ico svg{width:30px;height:30px}
+.card h4{margin:0;font-size:18px;line-height:1.2}
+.card .full{margin:2px 0 0;color:var(--smut);font-size:13px}
+.st{margin-left:auto;flex:none;display:inline-flex;align-items:center;gap:6px;padding:2px 10px;border-radius:999px;font-size:12px;font-weight:700;white-space:nowrap;border:1px solid}
+.st::before{content:"";width:8px;height:8px;border-radius:50%;background:currentColor}
+.st-live{color:var(--green);background:var(--greenBg);border-color:var(--green)}
+.st-dev{color:var(--ochre);background:var(--ochreBg);border-color:var(--ochre)}
+.st-planned{color:var(--plan);background:var(--planBg);border-color:var(--plan)}
+.st-dev::before{background:none;border:2px solid currentColor;width:6px;height:6px}
+.st-planned::before{background:none;border:1.5px dashed currentColor;width:6px;height:6px}
+.tag{margin:0;color:var(--sink)}
+.feat{margin:0;padding:0;list-style:none;display:flex;flex-wrap:wrap;gap:6px}
+.feat li{padding:2px 9px;border-radius:6px;background:var(--soft);color:var(--slink);font-size:12px}
+.acts{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:auto;padding-top:6px}
+.btn{display:inline-flex;align-items:center;gap:6px;min-height:34px;padding:6px 14px;border-radius:8px;border:1px solid var(--sedge);
+  background:#fff;color:var(--sink);font-weight:600;text-decoration:none;cursor:pointer;white-space:nowrap}
+.btn:hover{background:var(--ssel)}
+.btn.pri{background:var(--acc);border-color:var(--acc);color:var(--onAcc)}
+.btn.pri:hover{background:var(--accHover);color:#fff}
+.btn svg{width:15px;height:15px}
+.btn[aria-disabled=true]{background:var(--spanel2);border-color:var(--sline);color:var(--smut);cursor:not-allowed}
+.hint{font-size:12px;color:var(--smut)}
+mark{background:#fff0b3;color:inherit;border-radius:2px;padding:0 1px}
+
+/* recently opened, and quick links */
+.recent{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:0 0 14px}
+.recent .lbl{font-weight:700;color:var(--slink)}
+.recent a{display:inline-flex;align-items:center;gap:6px;min-height:30px;padding:3px 12px;border-radius:999px;background:var(--card);
+  border:1px solid var(--cardLine);color:var(--sink);text-decoration:none;font-weight:600}
+.recent a:hover{background:var(--ssel)}
+.links{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,280px),1fr));gap:10px}
+.links a,.links .nolink{display:flex;flex-direction:column;padding:10px 14px;border-radius:10px;background:var(--card);border:1px solid var(--cardLine);color:var(--sink);text-decoration:none}
+.links a:hover{background:var(--ssel)}
+.links b{color:var(--slink)}
+.links span{font-size:12px;color:var(--smut)}
+.empty{margin:28px 0;padding:24px;border:2px dashed var(--sline);border-radius:var(--r);text-align:center;color:var(--smut)}
+.toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);z-index:50;padding:8px 16px;border-radius:8px;background:var(--acc);color:var(--onAcc);
+  box-shadow:var(--shadowUp);font-weight:600}
+.toast[hidden]{display:none}
+footer.foot{margin:28px 0 0;padding-top:10px;border-top:1px solid var(--sline);color:var(--smut);font-size:12px}
+
+@media (max-width:900px){
+  .shell{display:block}
+  nav.rail{position:static;display:flex;flex-wrap:wrap;gap:4px;margin:10px 12px 0;border-radius:var(--r);max-height:none}
+  nav.rail h2{display:none}
+  nav.rail button{width:auto}
+  main{padding:14px 12px 32px}
+  .brand .bs{display:none}
+}
+@media (prefers-reduced-motion:reduce){.card{transition:none}.card:hover{transform:none}}
+@media print{nav.rail,.search,.bar,.recent,.skip{display:none}.card{break-inside:avoid;box-shadow:none}}
+
+/* the maintainer copy only (src/maint.js present): the gear, the note under the bar, and the Settings panel. Styles only; the team copy never draws them */
+.gear{display:inline-flex;align-items:center;gap:6px;min-height:36px;padding:6px 12px;border:1px solid var(--sedge);border-radius:999px;background:#fff;cursor:pointer;font-weight:600}
+.gear:hover{background:var(--ssel)}
+.gear svg{width:18px;height:18px}
+.maint{padding:4px 20px;background:var(--ochreBg);border-bottom:1px solid var(--ochre);color:#5c3706;font-size:13px;font-weight:700}
+.sdlg{width:min(860px,calc(100vw - 32px));max-height:calc(100vh - 48px);padding:0;border:1px solid var(--sedge);border-radius:var(--r);background:var(--spanel);color:var(--sink);box-shadow:var(--shadowUp)}
+.sdlg::backdrop{background:rgba(24,32,41,.45)}
+.sdlg-in > header{display:flex;align-items:center;gap:12px;padding:12px 18px;background:var(--acc);color:var(--onAcc)}
+.sdlg-in h2{margin:0;font-size:17px}
+.sdlg .x{margin-left:auto;width:32px;height:32px;border:1px solid rgba(234,240,246,.5);border-radius:8px;background:none;color:var(--onAcc);font-size:20px;line-height:1;cursor:pointer}
+.sdlg .x:hover{background:var(--accHover)}
+.sdlg .x:focus-visible{outline-color:var(--onAcc)}
+.snote{margin:12px 18px 4px;color:var(--smut);font-size:13px}
+.slist{list-style:none;margin:0;padding:8px 18px 18px;display:flex;flex-direction:column;gap:10px}
+.srow{display:grid;grid-template-columns:46px minmax(140px,180px) 1fr;align-items:center;gap:6px 14px;padding:12px 14px;border:1px solid var(--cardLine);border-radius:10px;background:var(--card)}
+.srow .sname b{display:block;font-size:15px}
+.sver{font-size:12px;color:var(--smut)}
+.sacts{display:flex;flex-wrap:wrap;gap:8px}
+.spath{grid-column:3;font-size:12px;color:var(--smut);overflow-wrap:anywhere}
+.spath code{font-size:12px}
+.err{color:#8c1d3f;font-weight:600}
+@media (max-width:640px){.srow{grid-template-columns:46px 1fr}.srow > :nth-child(3),.spath{grid-column:1 / -1}.gear span{display:none}}
+</style>
+</head>
+<body>
+<a class="skip" href="#main">Skip to the tools</a>
+<div id="app"><p class="boot">Opening the Sustainment Dashboard&hellip;</p></div>
+<script>
+// ===== tools.js =====
+// THE TOOL LIST. This is the only file you edit to add, change or retire a tool.
+//
+// To add a tool, copy one entry in `tools` below, change its fields, and run `npm run build`.
+//
+//   id        a short name in lower case, unique (used for "recently opened")
+//   name      what the card's heading says
+//   full      the full name, under the heading (optional)
+//   tagline   one sentence: what the tool is for
+//   features  up to four short lines: what is inside (optional)
+//   area      one of the `areas` ids below: the section the card sits in
+//   status    'live'     -- people use it; the card opens it
+//             'dev'      -- being built; the card says so
+//             'planned'  -- an idea on the list
+//   url       the tool's link in Teams. In Teams: the file's ⋯ menu › Copy link, and paste it here.
+//             Leave it '' until there is one: the card says "Link not set" rather than pointing nowhere.
+//             Only https:// links are accepted.
+//   icon      'orbit', 'apex', 'contract', 'budget', 'chart', 'doc' or 'grid'
+//
+// `links` is the short list of other dashboards in Teams (ones not built here), shown under Quick links.
+// Each is { name, note, url }.
+//
+// `npm run check` refuses an entry with an unknown area, status or icon, a repeated id, or a link that is not https.
+
+const DASH = {
+  title: 'Sustainment Dashboard',
+  subtitle: 'Every sustainment tool, one place to start',
+
+  areas: [
+    { id: 'plan',      name: 'Out-year planning',      blurb: 'The FYDP: requirements, priorities and the five-year spend plan.' },
+    { id: 'exec',      name: 'Active-year execution',  blurb: 'This year’s money: the spend plan, obligations and the budget behind them.' },
+    { id: 'contracts', name: 'Contracts',              blurb: 'Contract actions, awards and what each one carries.' },
+  ],
+
+  tools: [
+    {
+      id: 'orbit',
+      name: 'ORBIT',
+      full: 'Out-year Requirements & Budget Integration Tool',
+      tagline: 'The five-year spend plan across every appropriation: requirements ranked, funded and locked by PPBE cycle.',
+      features: ['Prioritization board and RECORD panel', 'FYDP spend plan and disconnects', 'PPBE cycles, positions and locks', 'PMO copies and submittals'],
+      area: 'plan',
+      status: 'live',
+      url: '',
+      icon: 'orbit',
+    },
+    {
+      id: 'apex',
+      name: 'APEX',
+      full: 'Appropriation Planning & Execution',
+      tagline: 'The active-year spend plan, drawn from the CCaR pull: every product the SFCB workbook made.',
+      features: ['Summary and slide blocks', 'Appropriation and PMO tabs', 'Unobligated requirements', 'Export to Excel'],
+      area: 'exec',
+      status: 'live',
+      url: '',
+      icon: 'apex',
+    },
+    {
+      id: 'spend-budget',
+      name: 'Spend Plan to Budget',
+      full: 'Spend plan against budget authority',
+      tagline: 'Where the spend plan stands against the budget: what is planned, what is authorized, and the gap.',
+      features: [],
+      area: 'exec',
+      status: 'dev',
+      url: '',
+      icon: 'budget',
+    },
+    {
+      id: 'contracts',
+      name: 'Contract Tracker',
+      full: '',
+      tagline: 'Every contract action in one list: what it is, where it stands, and when it lands.',
+      features: [],
+      area: 'contracts',
+      status: 'dev',
+      url: '',
+      icon: 'contract',
+    },
+  ],
+
+  links: [
+    // { name: 'Example team dashboard', note: 'Owned by …', url: 'https://…' },
+  ],
+};
+
+// ===== sources.js =====
+// WHERE EACH TOOL'S LATEST VERSION LIVES ON GITHUB. Maintainer copy only.
+//
+// This file is built into maintainer/sustainment-dashboard-maintainer.html and NEVER into sustainment-dashboard.html,
+// the copy the team opens from Teams. `npm run check` fails if a GitHub address reaches the team copy.
+//
+// Keyed by the tool's id in tools.js; 'hub' is this dashboard itself.
+//   repo      owner/name on GitHub
+//   path      the file to download, from the repository's root
+//   branch    the branch whose copy is the latest (normally 'main')
+//   version   what you last uploaded to Teams, as you want to read it (optional; the page cannot ask GitHub for it)
+//   notes     a file in the same repository that says what changed (optional; without one, the file's history is linked)
+
+const SOURCES = {
+  hub:   { repo: 'bradludington-ui/sustainment-dashboard', path: 'sustainment-dashboard.html',     branch: 'main', version: 'v1',    notes: '' },
+  orbit: { repo: 'bradludington-ui/orbit-board',           path: 'prioritization-board-grid.html', branch: 'main', version: 'v2.17', notes: 'NEXT-VERSION.md' },
+  apex:  { repo: 'bradludington-ui/orbit-board',           path: 'apex/apex.html',                 branch: 'main', version: '',      notes: '' },
+};
+
+// ===== maint.js =====
+'use strict';
+// THE SETTINGS PANEL: each tool's latest version on GitHub. Built into the maintainer copy only
+// (maintainer/sustainment-dashboard-maintainer.html), after sources.js and before app.js; the team copy carries
+// neither this file nor sources.js, so it has no gear, no panel and no GitHub address. app.js draws the gear only when
+// openSettings exists. Everything here runs after app.js has loaded (from a click), so it may use app.js's helpers.
+const GH = 'https://github.com/';
+const ghPart = s => String(s || '').split('/').map(encodeURIComponent).join('/');
+const ghOk = src => src && /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(src.repo || '') && src.path && !/\.\./.test(src.path) && /^[A-Za-z0-9_./-]+$/.test(src.branch || 'main');
+const ghLinks = src => {
+  const br = ghPart(src.branch || 'main'), repo = src.repo, path = ghPart(src.path);
+  return {
+    download: GH + repo + '/raw/' + br + '/' + path,
+    view: GH + repo + '/blob/' + br + '/' + path,
+    changes: src.notes ? GH + repo + '/blob/' + br + '/' + ghPart(src.notes) : GH + repo + '/commits/' + br + '/' + path,
+    repo: GH + repo,
+  };
+};
+function settingsHtml() {
+  const rows = [{ id: 'hub', name: DASH.title, icon: 'hub' }].concat(tools())
+    .map(t => ({ t, src: SOURCES[t.id] }));
+  const ext = '<span class="vh"> (opens GitHub in a new tab)</span>';
+  const a = (href, label, cls) => '<a class="btn' + (cls ? ' ' + cls : '') + '" href="' + esc(href) + '" target="_blank" rel="noopener noreferrer">' + label + ext + '</a>';
+  const body = rows.map(({ t, src }) => {
+    const ic = t.id === 'hub' ? ICONS.hub() : iconOf(t);
+    let right;
+    if (!src) right = '<span class="hint">No source recorded. Add one to <code>src/sources.js</code> once it is on GitHub.</span>';
+    else if (!ghOk(src)) right = '<span class="hint err">Its entry in <code>src/sources.js</code> is not a GitHub repository and file.</span>';
+    else {
+      const L = ghLinks(src);
+      right = '<div class="sacts">' + a(L.download, UI.download + 'Download latest', 'pri') + a(L.view, 'View on GitHub') + a(L.changes, src.notes ? 'What changed' : 'History') + '</div>'
+        + '<div class="spath"><code>' + esc(src.repo) + '</code> › <code>' + esc(src.path) + '</code> on <code>' + esc(src.branch || 'main') + '</code></div>';
+    }
+    return '<li class="srow"><span class="ico">' + ic + '</span><div class="sname"><b>' + esc(t.name) + '</b>'
+      + (src && src.version ? '<span class="sver">On Teams: ' + esc(src.version) + '</span>' : '') + '</div>' + right + '</li>';
+  }).join('');
+  return '<form method="dialog" class="sdlg-in"><header><h2 id="sdlgT">Settings: latest versions</h2><button class="x" value="close" aria-label="Close">×</button></header>'
+    + '<p class="snote">This panel is in your maintainer copy only. The copy on Teams has no gear and no GitHub address in it. '
+    + 'Download latest takes the file as it stands on its branch; a private repository asks you to sign in to GitHub first.</p>'
+    + '<ul class="slist">' + body + '</ul></form>';
+}
+function openSettings() {
+  const d = document.getElementById('sdlg');
+  d.innerHTML = settingsHtml();
+  if (typeof d.showModal === 'function') d.showModal(); else d.setAttribute('open', '');
+  d.querySelector('a,button')?.focus();
+}
+
+// ===== app.js =====
+'use strict';
+// Sustainment Dashboard: draws the tool list (tools.js) as a page. Nothing here holds data; the page reads DASH and
+// remembers, in this browser only, which menu entry was chosen and which tools were opened lately.
+
+const STATUS = {
+  live:    { label: 'Live',           cls: 'st-live',    order: 0 },
+  dev:     { label: 'In development', cls: 'st-dev',     order: 1 },
+  planned: { label: 'Planned',        cls: 'st-planned', order: 2 },
+};
+const AREA_COLOR = { plan: 'var(--a-plan)', exec: 'var(--a-exec)', contracts: 'var(--a-contracts)' };
+
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+// a link is offered only when it is https: anything else (a typo, a javascript: address) is "not set"
+const linkOk = u => typeof u === 'string' && /^https:\/\/[^\s"'<>]+$/i.test(u.trim());
+
+// storage is a convenience: a private window or a blocked site refuses it, and the page works the same without it
+const store = {
+  get(k, d) { try { const v = localStorage.getItem('sdash.' + k); return v == null ? d : JSON.parse(v); } catch { return d; } },
+  set(k, v) { try { localStorage.setItem('sdash.' + k, JSON.stringify(v)); } catch {} },
+};
+
+// ---- the marks. ORBIT's and APEX's are their own logos; the hub's is the same family: a ring, a satellite, and tiles.
+let _uid = 0;
+function ringMark(inner, label) {
+  const id = 'm' + (++_uid);
+  return '<svg viewBox="0 0 100 100" role="img" aria-label="' + esc(label) + '"><mask id="' + id + '" maskUnits="userSpaceOnUse" x="0" y="0" width="100" height="100">'
+    + '<rect width="100" height="100" fill="#fff"/><circle cx="80.21" cy="26.4" r="16.3" fill="#000"/></mask>'
+    + '<circle cx="50" cy="50" r="38.33" fill="none" stroke="currentColor" stroke-width="12" mask="url(#' + id + ')"/>'
+    + inner + '<circle cx="80.21" cy="26.4" r="10.75" fill="var(--mark-accent, currentColor)"/></svg>';
+}
+const glyph = d => '<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' + d + '</svg>';
+const ICONS = {
+  hub: () => ringMark('<rect x="35" y="35" width="13" height="13" rx="2.5" fill="currentColor"/><rect x="52" y="35" width="13" height="13" rx="2.5" fill="currentColor"/>'
+    + '<rect x="35" y="52" width="13" height="13" rx="2.5" fill="currentColor"/><rect x="52" y="52" width="13" height="13" rx="2.5" fill="currentColor"/>', 'Sustainment Dashboard'),
+  orbit: () => {
+    const id = 'm' + (++_uid);
+    return '<svg viewBox="0 0 100 100" role="img" aria-label="ORBIT"><mask id="' + id + '" maskUnits="userSpaceOnUse" x="1" y="1" width="98" height="98"><rect x="1" y="1" width="98" height="98" fill="#fff"/>'
+      + '<circle cx="80.21" cy="26.4" r="16.3" fill="#000"/></mask><circle cx="50" cy="50" r="38.33" fill="none" stroke="currentColor" stroke-width="17.34" mask="url(#' + id + ')"/>'
+      + '<circle cx="50" cy="50" r="8.32" fill="currentColor"/><circle cx="80.21" cy="26.4" r="10.75" fill="var(--mark-accent, currentColor)"/></svg>';
+  },
+  apex: () => {
+    const a = 'm' + (++_uid), b = 'm' + (++_uid);
+    return '<svg viewBox="0 0 100 100" role="img" aria-label="APEX"><mask id="' + a + '" maskUnits="userSpaceOnUse" x="0" y="0" width="100" height="100"><rect width="100" height="100" fill="#fff"/><circle cx="82.31" cy="24.76" r="13.4" fill="#000"/></mask>'
+      + '<clipPath id="' + b + '"><circle cx="50" cy="50" r="36.5"/></clipPath><circle cx="50" cy="50" r="41" fill="none" stroke="currentColor" stroke-width="10" mask="url(#' + a + ')"/>'
+      + '<path clip-path="url(#' + b + ')" fill="currentColor" fill-rule="evenodd" d="M25.8 32.36 L28.68 32 L29.98 35.96 L31.99 32.43 L34.01 36.61 L36.02 32.86 L38.04 37.04 L40.06 33.3 L42.07 37.33 L44.09 33.87 L46.1 37.47 L48.12 34.59 L51.36 38.12 L48.84 41.07 L46.97 39.2 L44.95 42.8 L42.94 40.5 L40.92 44.24 L38.9 41.79 L36.89 45.54 L34.87 43.09 L32.86 46.4 L31.13 44.38 L28.68 46.76 L30.12 50 L38.76 52.88 L48.12 51.44 L51.72 48.2 L49 56 L42 58.5 L37 63 L39.2 62.6 L39 65.6 L41.2 63.4 L42.4 66 L44 62.8 L48.4 62.4 L48 68 L42 70.5 L38.5 75 L40.7 74.4 L40.9 77.4 L42.7 75 L44.3 77.2 L45.1 74 L47.8 73.4 L46.5 84 L48 100 L81 100 L78 82 L73 66 L68 54 L65.04 45.68 L62.16 34.88 L57.12 27.32 L51 22.28 L46.68 23.5 L42.36 21.34 L35.88 22.35 L30.12 23.36 L25.8 27.1 L24.72 29.84 Z M50.64 26.53 L44.23 27.82 L45.24 30.13 L49.42 29.26 Z M29.83 25.95 L27.82 26.82 L28.25 27.97 L30.19 27.25 Z"/>'
+      + '<circle cx="82.31" cy="24.76" r="8.6" fill="var(--mark-accent, currentColor)"/></svg>';
+  },
+  contract: () => glyph('<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M9 13h6M9 17h4"/><path d="m15.5 16.5 1.2 1.2 2.3-2.4"/>'),
+  budget: () => glyph('<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/><path d="M14 7.5h6M17 4.5v6" />'),
+  chart: () => glyph('<path d="M3 3v18h18"/><path d="m7 15 4-4 3 3 5-6"/>'),
+  doc: () => glyph('<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h6"/>'),
+  grid: () => glyph('<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>'),
+};
+const UI = {
+  search: glyph('<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>'),
+  open: glyph('<path d="M14 4h6v6M20 4l-9 9"/><path d="M19 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h5"/>'),
+  download: glyph('<path d="M12 4v11M7 10l5 5 5-5"/><path d="M5 20h14"/>'),
+  gear: glyph('<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>'),
+  copy: glyph('<rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a1 1 0 0 1 1-1h10"/>'),
+};
+const iconOf = t => (ICONS[t.icon] || ICONS.grid)();
+
+// ---- state
+const S = {
+  view: store.get('view', 'all'),   // 'all' | an area id | 'links'
+  status: store.get('status', 'all'),
+  q: '',
+};
+const areas = () => DASH.areas || [];
+const tools = () => (DASH.tools || []).slice();
+const areaOf = t => areas().find(a => a.id === t.area);
+if (S.view !== 'all' && S.view !== 'links' && !areas().some(a => a.id === S.view)) S.view = 'all';
+if (S.status !== 'all' && !STATUS[S.status]) S.status = 'all';
+
+function matches(t, q) {
+  if (!q) return true;
+  const hay = [t.name, t.full, t.tagline, (t.features || []).join(' '), (areaOf(t) || {}).name, (STATUS[t.status] || {}).label].join(' ').toLowerCase();
+  return q.toLowerCase().split(/\s+/).filter(Boolean).every(w => hay.includes(w));
+}
+// the search words, marked where they appear in a piece of text (escaped first, so a mark never meets markup)
+function hl(text) {
+  const s = esc(text);
+  const words = S.q.trim().split(/\s+/).filter(w => w.length > 1).map(w => esc(w).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+  return words.length ? s.replace(new RegExp('(' + words.join('|') + ')', 'gi'), '<mark>$1</mark>') : s;
+}
+function visible() {
+  return tools().filter(t => (S.status === 'all' || t.status === S.status) && matches(t, S.q))
+    .sort((a, b) => ((STATUS[a.status] || { order: 9 }).order - (STATUS[b.status] || { order: 9 }).order));
+}
+
+// ---- drawing
+function card(t) {
+  const st = STATUS[t.status] || { label: t.status || 'Unknown', cls: 'st-planned' };
+  const ok = linkOk(t.url);
+  const color = AREA_COLOR[t.area] || 'var(--a-other)';
+  const feats = (t.features || []).slice(0, 4).map(f => '<li>' + hl(f) + '</li>').join('');
+  const open = ok
+    ? '<a class="btn pri" href="' + esc(t.url.trim()) + '" target="_blank" rel="noopener noreferrer" data-open="' + esc(t.id) + '">' + UI.open + 'Open ' + esc(t.name) + '</a>'
+      + '<button type="button" class="btn" data-copy="' + esc(t.id) + '">' + UI.copy + 'Copy link</button>'
+    : '<span class="btn" aria-disabled="true" role="link" title="This tool’s Teams link has not been added to the tool list yet">'
+      + (t.status === 'live' ? 'Link not set' : 'Not open yet') + '</span>'
+      + (t.status === 'live' ? '<span class="hint">Add its Teams link to the tool list.</span>' : '');
+  return '<article class="card' + (ok ? '' : ' off') + '" style="--area:' + color + '" aria-labelledby="t-' + esc(t.id) + '">'
+    + '<div class="head"><span class="ico">' + iconOf(t) + '</span><div><h4 id="t-' + esc(t.id) + '">' + hl(t.name) + '</h4>'
+    + (t.full ? '<p class="full">' + hl(t.full) + '</p>' : '') + '</div>'
+    + '<span class="st ' + st.cls + '">' + esc(st.label) + '</span></div>'
+    + '<p class="tag">' + hl(t.tagline) + '</p>'
+    + (feats ? '<ul class="feat" aria-label="What is inside">' + feats + '</ul>' : '')
+    + '<div class="acts">' + open + '</div></article>';
+}
+
+function railHtml() {
+  const all = tools();
+  const btn = (v, label, n, dot) => '<button type="button" data-view="' + esc(v) + '" aria-pressed="' + (S.view === v) + '">'
+    + (dot ? '<span class="dot" style="background:' + dot + '"></span>' : '') + esc(label)
+    + (n == null ? '' : '<span class="n">' + n + '</span>') + '</button>';
+  let h = '<h2>Tools</h2>' + btn('all', 'All tools', all.length);
+  h += '<h2>Areas</h2>' + areas().map(a => btn(a.id, a.name, all.filter(t => t.area === a.id).length, AREA_COLOR[a.id] || 'var(--a-other)')).join('');
+  const orphans = all.filter(t => !areaOf(t)).length;
+  if (orphans) h += btn('other', 'Other', orphans, 'var(--a-other)');
+  if ((DASH.links || []).length) h += '<h2>Elsewhere in Teams</h2>' + btn('links', 'Quick links', DASH.links.length);
+  return h;
+}
+
+function heroHtml() {
+  const all = tools();
+  const n = k => all.filter(t => t.status === k).length;
+  const stat = (v, l) => '<div class="stat"><b>' + v + '</b><span>' + esc(l) + '</span></div>';
+  return '<div class="hero"><div><h2>' + esc(DASH.title) + '</h2><p>' + esc(DASH.subtitle) + '. Pick a tool to open it in a new tab.</p></div>'
+    + '<div class="stats">' + stat(n('live'), 'live') + stat(n('dev'), 'in development') + (n('planned') ? stat(n('planned'), 'planned') : '') + '</div></div>';
+}
+
+function recentHtml() {
+  const ids = store.get('recent', []);
+  const list = ids.map(id => tools().find(t => t.id === id)).filter(t => t && linkOk(t.url)).slice(0, 5);
+  if (!list.length) return '';
+  return '<div class="recent"><span class="lbl">Recently opened</span>' + list.map(t =>
+    '<a href="' + esc(t.url.trim()) + '" target="_blank" rel="noopener noreferrer" data-open="' + esc(t.id) + '">' + esc(t.name) + '</a>').join('') + '</div>';
+}
+
+function linksHtml() {
+  const L = (DASH.links || []).filter(l => !S.q || [l.name, l.note].join(' ').toLowerCase().includes(S.q.toLowerCase()));
+  if (!L.length) return '<div class="empty">No quick links match.</div>';
+  return '<section class="area"><header><h3>Quick links</h3><p>Other dashboards in Teams.</p></header><div class="links">'
+    + L.map(l => linkOk(l.url)
+      ? '<a href="' + esc(l.url.trim()) + '" target="_blank" rel="noopener noreferrer"><b>' + hl(l.name) + '</b>' + (l.note ? '<span>' + hl(l.note) + '</span>' : '') + '</a>'
+      : '<div class="nolink"><b>' + hl(l.name) + '</b><span>Link not set</span></div>').join('') + '</div></section>';
+}
+
+function mainHtml() {
+  if (S.view === 'links') return linksHtml();
+  const vis = visible();
+  const chip = (v, l) => '<button type="button" class="chip" data-status="' + v + '" aria-pressed="' + (S.status === v) + '">' + esc(l) + '</button>';
+  let h = '';
+  if (S.view === 'all' && !S.q) h += heroHtml() + recentHtml();
+  const inView = vis.filter(t => S.view === 'all' || (S.view === 'other' ? !areaOf(t) : t.area === S.view));
+  h += '<div class="bar" role="group" aria-label="Show by status"><span class="lbl">Show</span>' + chip('all', 'All')
+    + Object.keys(STATUS).filter(k => tools().some(t => t.status === k)).map(k => chip(k, STATUS[k].label)).join('')
+    + '<span class="shown" role="status">' + inView.length + ' of ' + tools().length + ' tools' + (S.q ? ' matching “' + esc(S.q) + '”' : '') + '</span></div>';
+  const groups = S.view === 'all' ? areas().concat([{ id: 'other', name: 'Other', blurb: '' }]) : [S.view === 'other' ? { id: 'other', name: 'Other', blurb: '' } : areas().find(a => a.id === S.view)];
+  let any = false;
+  for (const a of groups) {
+    const list = inView.filter(t => a.id === 'other' ? !areaOf(t) : t.area === a.id);
+    if (!list.length) continue;
+    any = true;
+    h += '<section class="area" aria-labelledby="a-' + esc(a.id) + '"><header><h3 id="a-' + esc(a.id) + '"><span class="sw" style="background:' + (AREA_COLOR[a.id] || 'var(--a-other)') + '"></span>'
+      + esc(a.name) + '</h3>' + (a.blurb ? '<p>' + esc(a.blurb) + '</p>' : '') + '</header><div class="grid">' + list.map(card).join('') + '</div></section>';
+  }
+  if (!any) h += '<div class="empty">' + (S.q ? 'No tool matches “' + esc(S.q) + '”. Try fewer words, or clear the search (Esc).' : 'No tools here yet.') + '</div>';
+  if (S.view === 'all' && !S.q && (DASH.links || []).length) h += linksHtml();
+  return h;
+}
+
+function draw() {
+  document.getElementById('rail').innerHTML = railHtml();
+  document.getElementById('main').innerHTML = mainHtml() + '<footer class="foot">To add a tool or change a link, edit <code>src/tools.js</code> in the sustainment-dashboard repository and rebuild. This page holds no data.</footer>';
+}
+
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg; el.hidden = false;
+  clearTimeout(toast.t); toast.t = setTimeout(() => { el.hidden = true; }, 2200);
+}
+function remember(id) {
+  const ids = store.get('recent', []).filter(x => x !== id);
+  ids.unshift(id); store.set('recent', ids.slice(0, 8));
+}
+async function copyLink(t) {
+  const u = t.url.trim();
+  try { await navigator.clipboard.writeText(u); toast('Link to ' + t.name + ' copied'); return; } catch {}
+  // a browser that refuses the clipboard: put the link in a box the person can copy from
+  window.prompt('Copy the link to ' + t.name + ':', u);
+}
+
+
+// the maintainer copy adds src/maint.js (the Settings panel); the team copy has none of it, so this is false there
+const HAS_MAINT = typeof openSettings === 'function';
+
+function boot() {
+  document.getElementById('app').innerHTML =
+    '<header class="top"><h1 class="brand">' + ICONS.hub() + '<span>' + esc(DASH.title) + '</span><span class="bs">' + esc(DASH.subtitle) + '</span></h1>'
+    + '<div class="search" role="search">' + UI.search + '<label class="vh" for="q">Search the tools</label>'
+    + '<input id="q" type="search" placeholder="Search tools" autocomplete="off"><kbd>/</kbd></div>'
+    + (HAS_MAINT ? '<button type="button" class="gear" id="gear" aria-haspopup="dialog" title="Settings: latest versions">' + UI.gear + '<span>Settings</span></button>' : '')
+    + '</header>' + (HAS_MAINT ? '<div class="maint" role="note">Maintainer copy: keep this file to yourself. The team opens sustainment-dashboard.html.</div>' : '')
+    + '<div class="shell"><nav class="rail" id="rail" aria-label="Areas"></nav><main id="main" tabindex="-1"></main></div>'
+    + '<div class="toast" id="toast" role="status" hidden></div>'
+    + (HAS_MAINT ? '<dialog class="sdlg" id="sdlg" aria-labelledby="sdlgT"></dialog>' : '');
+  const q = document.getElementById('q');
+  q.addEventListener('input', () => { S.q = q.value.trim(); draw(); });
+  document.addEventListener('keydown', e => {
+    if (e.key === '/' && document.activeElement !== q && !/^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName)) { e.preventDefault(); q.focus(); }
+    else if (e.key === 'Escape' && document.activeElement === q && q.value) { q.value = ''; S.q = ''; draw(); }
+  });
+  document.addEventListener('click', e => {
+    if (HAS_MAINT && e.target.closest('#gear')) { openSettings(); return; }
+    const v = e.target.closest('[data-view]');
+    if (v) { S.view = v.dataset.view; store.set('view', S.view); draw(); document.querySelector('[data-view="' + CSS.escape(S.view) + '"]')?.focus(); return; }
+    const s = e.target.closest('[data-status]');
+    if (s) { S.status = s.dataset.status; store.set('status', S.status); draw(); document.querySelector('[data-status="' + CSS.escape(S.status) + '"]')?.focus(); return; }
+    const c = e.target.closest('[data-copy]');
+    if (c) { const t = tools().find(x => x.id === c.dataset.copy); if (t) copyLink(t); return; }
+    const o = e.target.closest('[data-open]');
+    if (o) remember(o.dataset.open);
+  });
+  // a link opened with the middle button counts as opened too
+  document.addEventListener('auxclick', e => { const o = e.target.closest('[data-open]'); if (o) remember(o.dataset.open); });
+  draw();
+}
+boot();
+</script>
+</body>
+</html>

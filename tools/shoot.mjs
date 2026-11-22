@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// npm run shoot -- out.png [--width N] [--height N] [--full] [--links]
+// npm run shoot -- out.png [--width N] [--height N] [--full] [--links] [--maint [--settings]]
 // Photographs the built page in Chromium. --links fills every url with a stand-in so the cards show their Open buttons.
 import { createRequire } from 'node:module';
 import { readFileSync, writeFileSync, mkdtempSync } from 'node:fs';
@@ -11,7 +11,7 @@ const { chromium } = require('playwright');
 const args = process.argv.slice(2);
 const opt = (k, d) => { const i = args.indexOf(k); return i >= 0 ? args[i + 1] : d; };
 const out = resolve(args.find(a => a.endsWith('.png')) || 'shot.png');
-let html = readFileSync(resolve('sustainment-dashboard.html'), 'utf8');
+let html = readFileSync(resolve(args.includes('--maint') ? 'maintainer/sustainment-dashboard-maintainer.html' : 'sustainment-dashboard.html'), 'utf8');
 if (args.includes('--links')) html = html.replace(/url: ''/g, "url: 'https://example.invalid/tool'");
 const dir = mkdtempSync(join(tmpdir(), 'sdash-'));
 const file = join(dir, 'page.html'); writeFileSync(file, html);
@@ -22,6 +22,7 @@ const page = await browser.newPage({ viewport: { width: +opt('--width', 1440), h
 const errs = []; page.on('pageerror', e => errs.push(e.message)); page.on('console', m => m.type() === 'error' && errs.push(m.text()));
 await page.goto(pathToFileURL(file).href);
 await page.waitForSelector('.card');
+if (args.includes('--settings')) { await page.click('#gear'); await page.waitForSelector('#sdlg[open]'); }
 await page.screenshot({ path: out, fullPage: args.includes('--full') });
 await browser.close();
 if (errs.length) { console.error('page errors:\n' + errs.join('\n')); process.exit(1); }

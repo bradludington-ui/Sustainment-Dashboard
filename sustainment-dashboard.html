@@ -144,6 +144,29 @@ footer.foot{margin:28px 0 0;padding-top:10px;border-top:1px solid var(--sline);c
 }
 @media (prefers-reduced-motion:reduce){.card{transition:none}.card:hover{transform:none}}
 @media print{nav.rail,.search,.bar,.recent,.skip{display:none}.card{break-inside:avoid;box-shadow:none}}
+
+/* the maintainer copy only (src/maint.js present): the gear, the note under the bar, and the Settings panel. Styles only; the team copy never draws them */
+.gear{display:inline-flex;align-items:center;gap:6px;min-height:36px;padding:6px 12px;border:1px solid var(--sedge);border-radius:999px;background:#fff;cursor:pointer;font-weight:600}
+.gear:hover{background:var(--ssel)}
+.gear svg{width:18px;height:18px}
+.maint{padding:4px 20px;background:var(--ochreBg);border-bottom:1px solid var(--ochre);color:#5c3706;font-size:13px;font-weight:700}
+.sdlg{width:min(860px,calc(100vw - 32px));max-height:calc(100vh - 48px);padding:0;border:1px solid var(--sedge);border-radius:var(--r);background:var(--spanel);color:var(--sink);box-shadow:var(--shadowUp)}
+.sdlg::backdrop{background:rgba(24,32,41,.45)}
+.sdlg-in > header{display:flex;align-items:center;gap:12px;padding:12px 18px;background:var(--acc);color:var(--onAcc)}
+.sdlg-in h2{margin:0;font-size:17px}
+.sdlg .x{margin-left:auto;width:32px;height:32px;border:1px solid rgba(234,240,246,.5);border-radius:8px;background:none;color:var(--onAcc);font-size:20px;line-height:1;cursor:pointer}
+.sdlg .x:hover{background:var(--accHover)}
+.sdlg .x:focus-visible{outline-color:var(--onAcc)}
+.snote{margin:12px 18px 4px;color:var(--smut);font-size:13px}
+.slist{list-style:none;margin:0;padding:8px 18px 18px;display:flex;flex-direction:column;gap:10px}
+.srow{display:grid;grid-template-columns:46px minmax(140px,180px) 1fr;align-items:center;gap:6px 14px;padding:12px 14px;border:1px solid var(--cardLine);border-radius:10px;background:var(--card)}
+.srow .sname b{display:block;font-size:15px}
+.sver{font-size:12px;color:var(--smut)}
+.sacts{display:flex;flex-wrap:wrap;gap:8px}
+.spath{grid-column:3;font-size:12px;color:var(--smut);overflow-wrap:anywhere}
+.spath code{font-size:12px}
+.err{color:#8c1d3f;font-weight:600}
+@media (max-width:640px){.srow{grid-template-columns:46px 1fr}.srow > :nth-child(3),.spath{grid-column:1 / -1}.gear span{display:none}}
 </style>
 </head>
 <body>
@@ -293,6 +316,8 @@ const ICONS = {
 const UI = {
   search: glyph('<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>'),
   open: glyph('<path d="M14 4h6v6M20 4l-9 9"/><path d="M19 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h5"/>'),
+  download: glyph('<path d="M12 4v11M7 10l5 5 5-5"/><path d="M5 20h14"/>'),
+  gear: glyph('<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>'),
   copy: glyph('<rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a1 1 0 0 1 1-1h10"/>'),
 };
 const iconOf = t => (ICONS[t.icon] || ICONS.grid)();
@@ -429,13 +454,20 @@ async function copyLink(t) {
   window.prompt('Copy the link to ' + t.name + ':', u);
 }
 
+
+// the maintainer copy adds src/maint.js (the Settings panel); the team copy has none of it, so this is false there
+const HAS_MAINT = typeof openSettings === 'function';
+
 function boot() {
   document.getElementById('app').innerHTML =
     '<header class="top"><h1 class="brand">' + ICONS.hub() + '<span>' + esc(DASH.title) + '</span><span class="bs">' + esc(DASH.subtitle) + '</span></h1>'
     + '<div class="search" role="search">' + UI.search + '<label class="vh" for="q">Search the tools</label>'
-    + '<input id="q" type="search" placeholder="Search tools" autocomplete="off"><kbd>/</kbd></div></header>'
+    + '<input id="q" type="search" placeholder="Search tools" autocomplete="off"><kbd>/</kbd></div>'
+    + (HAS_MAINT ? '<button type="button" class="gear" id="gear" aria-haspopup="dialog" title="Settings: latest versions">' + UI.gear + '<span>Settings</span></button>' : '')
+    + '</header>' + (HAS_MAINT ? '<div class="maint" role="note">Maintainer copy: keep this file to yourself. The team opens sustainment-dashboard.html.</div>' : '')
     + '<div class="shell"><nav class="rail" id="rail" aria-label="Areas"></nav><main id="main" tabindex="-1"></main></div>'
-    + '<div class="toast" id="toast" role="status" hidden></div>';
+    + '<div class="toast" id="toast" role="status" hidden></div>'
+    + (HAS_MAINT ? '<dialog class="sdlg" id="sdlg" aria-labelledby="sdlgT"></dialog>' : '');
   const q = document.getElementById('q');
   q.addEventListener('input', () => { S.q = q.value.trim(); draw(); });
   document.addEventListener('keydown', e => {
@@ -443,6 +475,7 @@ function boot() {
     else if (e.key === 'Escape' && document.activeElement === q && q.value) { q.value = ''; S.q = ''; draw(); }
   });
   document.addEventListener('click', e => {
+    if (HAS_MAINT && e.target.closest('#gear')) { openSettings(); return; }
     const v = e.target.closest('[data-view]');
     if (v) { S.view = v.dataset.view; store.set('view', S.view); draw(); document.querySelector('[data-view="' + CSS.escape(S.view) + '"]')?.focus(); return; }
     const s = e.target.closest('[data-status]');

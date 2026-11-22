@@ -13,6 +13,12 @@ dashboard, and more). See README.md for what it is and how it is updated.
 - **One file, nothing from the network.** It is opened from Teams (SharePoint), which hands people the file on its own,
   so a stylesheet or script beside it would not come along. The CSP in `src/shell.html` refuses every outside load;
   links still navigate. Do not add a CDN, a web font or a fetch.
+- **Two copies, and GitHub stays out of the team's.** `build.mjs` writes `sustainment-dashboard.html` (the team copy,
+  for Teams) and `maintainer/sustainment-dashboard-maintainer.html` (Brad's, with the Settings panel of download links).
+  Only the maintainer copy carries `src/sources.js` and `src/maint.js`. Brad, 22 Nov 2026: he does not want others to
+  readily be able to download the latest versions. So the links are LEFT OUT of the team copy, never hidden in it
+  (View Source would show them). `npm run check` fails on any mention of GitHub in the team copy, comments included:
+  never write a GitHub address, or the panel's code, into tools.js, app.js, style.css or shell.html.
 - **The tool list is the one place a tool is described.** `src/tools.js`. The page draws everything from it; a new
   field goes there and in `tools/check.mjs` together.
 - **No data, ever.** The hub links to tools; it never holds budget or contract figures. Tools that hold data live in

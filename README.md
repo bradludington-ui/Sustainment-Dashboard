@@ -24,13 +24,28 @@ Everything the page shows comes from one file, **`src/tools.js`**. Its header ex
 
 Other dashboards in Teams (not built here) go in `links`, and show under **Quick links**.
 
+## Your maintainer copy: the latest versions
+
+`maintainer/sustainment-dashboard-maintainer.html` is the same page with a **Settings** gear at the top right. Settings
+lists every tool with **Download latest** (the file as it stands on its GitHub branch), **View on GitHub** and **What
+changed** / **History**, and the version you last put on Teams.
+
+**Keep it to yourself; never upload it to Teams.** The team copy has no gear, and no GitHub address anywhere in the file
+(not hidden: left out, so View Source shows nothing either). `npm run check` fails if one ever gets in.
+
+Where each tool comes from is in `src/sources.js`. When you upload a new version to Teams, update its `version` there
+so the panel says what is on Teams.
+
 ## The files
 
 | File | What it is |
 |---|---|
-| `sustainment-dashboard.html` | The page people open. Built; never edit it by hand. |
+| `sustainment-dashboard.html` | The page people open (the team copy). Built; never edit it by hand. |
+| `maintainer/sustainment-dashboard-maintainer.html` | Your copy, with Settings. Built. |
 | `src/tools.js` | The tool list. The file you edit. |
 | `src/app.js` | Draws the page from the list. |
+| `src/sources.js` | Where each tool's latest version is on GitHub. Maintainer copy only. |
+| `src/maint.js` | The Settings panel. Maintainer copy only. |
 | `src/style.css` | The look (Harbor, as ORBIT and APEX). |
 | `src/shell.html` | The page around them, with its Content-Security-Policy. |
 | `build.mjs` | Puts the four together into one file. |
