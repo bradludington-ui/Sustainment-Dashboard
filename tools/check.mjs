@@ -70,6 +70,15 @@ if (C) {
     cids.add(k.id);
   }
   const keys = new Set();
+  const terms = new Set();
+  for (const g of C.glossary || []) {
+    if (!g.term || !g.meaning) fail('a glossary entry needs a term and a meaning: ' + JSON.stringify(g).slice(0, 80));
+    if (terms.has(String(g.term).toLowerCase())) fail('glossary term listed twice: ' + g.term);
+    terms.add(String(g.term).toLowerCase());
+    if (g.url !== undefined && !okUrl(g.url)) fail('glossary ' + g.term + ': url must be https://');
+  }
+  for (const n of C.notices || []) if (!n.text || !/^\d{4}-\d{2}-\d{2}$/.test(n.date || '')) fail('an announcement needs text and a date: ' + JSON.stringify(n).slice(0, 80));
+  if (C.meta && C.meta.contact && !/^[^\s@]+@[^\s@]+\.[A-Za-z]{2,}$/.test(C.meta.contact)) fail('meta.contact is not an email address');
   for (const c of C.items || []) {
     const who = 'catalog link ' + JSON.stringify(c.name || '?');
     if (!c.name) fail(who + ': no name');

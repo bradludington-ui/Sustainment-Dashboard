@@ -50,6 +50,20 @@ dashboard, and more). See README.md for what it is and how it is updated.
   refused in the editor). Dated links sort newest first after the undated ones (`linkOrder`), and a section's own tab
   splits into Schedule & resources, Upcoming and Past sessions once any of its links is dated (`sectionTab`). "Upcoming"
   includes today, in the reader's own time zone (`today()`), never UTC's.
+- **The office hub (Brad, 23 Nov 2026: "the end all, be all")** adds to the catalog `meta` (`contact`, `office`,
+  `updated`), `notices` and `glossary`, and to a link `keywords` and `checked`. All of it goes through `normCatalog()`.
+  `catOut()` in maint.js is every part written to a file; a new part goes in both, or a save silently drops it.
+  `sigOf()` leaves out `meta.updated` so saving one copy never makes the other read as changed. The stamp is applied
+  only once the write has landed.
+- **Report and Suggest are `mailto:` links to `meta.contact`**, which Brad types in Office settings. Never write an
+  address into the source. Without a contact they do not show.
+- **A spreadsheet cell starting `= + - @`, a tab or a CR is written with a leading apostrophe** (`csvCell`), so Excel
+  never runs a link name as a formula.
+- **A row's extra controls (`.lmore`) sit over the row and move nothing.** A version that widened the row on hover
+  rewrapped the name and made the cards jump under the pointer; `npm test` holds the row, the name's width and every
+  card still while hovering, and was shown failing on that version.
+- **`npm run a11y`** (axe-core, dev only) must report no findings. A link not set is told apart by a dashed edge, never
+  by fading: fading took the Live badge under 4.5:1.
 - **`npm test`** drives the page in Chromium end to end (`tools/editor-test.mjs`); run it with `npm run check` before a
   commit that touches app.js or maint.js.
 - Check appearance with `npm run shoot` at 1440, 1366 and a phone width (420) before calling a change done

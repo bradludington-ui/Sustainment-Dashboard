@@ -61,8 +61,11 @@ function openSettings() {
 const SRC0 = '<!DOCTYPE html>\n' + document.documentElement.outerHTML;   // this page as it opened, before it drew
 const FA = '/*@' + 'MAINT>*/', FB = '/*<' + 'MAINT@*/';                // built from pieces: this file sits inside a fence
 const ED = { on: false, fileSig: '', teamSig: '', dirty: false, undo: null };
-const sigOf = cat => { const j = JSON.stringify({ categories: cat.categories, items: cat.items }); let h = 5381; for (let i = 0; i < j.length; i++) h = ((h * 33) ^ j.charCodeAt(i)) >>> 0; return j.length + '.' + h.toString(36); };
-const plainCat = () => ({ categories: CATALOG.categories.map(k => ({ ...k })), items: CATALOG.items.map(c => ({ ...c })) });
+// every part of a catalog that is written to a file. sigOf leaves out meta.updated, the stamp Save writes: saving the
+// team copy must not make the maintainer copy read as changed, nor the other way round.
+const catOut = cat => ({ meta: cat.meta || {}, categories: cat.categories, items: cat.items, notices: cat.notices || [], glossary: cat.glossary || [] });
+const sigOf = cat => { const o = catOut(cat), m = { ...o.meta }; delete m.updated; const j = JSON.stringify({ ...o, meta: m }); let h = 5381; for (let i = 0; i < j.length; i++) h = ((h * 33) ^ j.charCodeAt(i)) >>> 0; return j.length + '.' + h.toString(36); };
+const plainCat = () => JSON.parse(JSON.stringify(catOut(CATALOG)));
 
 function edKeep() {   // after every edit: keep the draft, mark unsaved, redraw
   ED.dirty = sigOf(CATALOG) !== ED.fileSig;
@@ -78,7 +81,7 @@ function slugId(name, taken) {
 
 // ---- the page's own file, rewritten: the catalog goes into the data block, nothing else changes
 function htmlWith(cat, team) {
-  const json = JSON.stringify({ categories: cat.categories, items: cat.items }).replace(/</g, '\\u003c');
+  const json = JSON.stringify(catOut(cat)).replace(/</g, '\\u003c');
   const re = /(<script id="catData" type="application\/json">)[\s\S]*?(<\/script>)/;
   if (!re.test(SRC0)) throw new Error('this page has lost its catalog block');
   let html = SRC0.replace(re, (m, a, b) => a + json + b);
@@ -120,15 +123,17 @@ async function pickFile(name, key) {
 async function saveFile({ team }) {
   const name = team ? 'sustainment-dashboard.html' : 'sustainment-dashboard-maintainer.html';
   const want = team ? 'team' : 'maint', key = team ? 'teamFile' : 'maintFile';
+  // the file says when its links were saved ("Links updated 22 Nov 2026" on the page); the stamp lands only if the write does
+  const stamp = new Date().toISOString();
   let html;
-  try { html = htmlWith(CATALOG, team); } catch (e) { alert('Not saved: ' + e.message); return false; }
+  try { html = htmlWith({ ...CATALOG, meta: { ...CATALOG.meta, updated: stamp } }, team); } catch (e) { alert('Not saved: ' + e.message); return false; }
   try {
     let h = await IDB.get(key), fresh = false;
     if (h && h.queryPermission && (await h.queryPermission({ mode: 'readwrite' })) !== 'granted') {
       if ((await h.requestPermission({ mode: 'readwrite' })) !== 'granted') h = null;
     }
     if (!h) { h = await pickFile(name, key); fresh = true; }
-    if (!h) { download(name, html); toast(name + ' downloaded: put it where the old one was'); return 'downloaded'; }
+    if (!h) { download(name, html); CATALOG.meta.updated = stamp; toast(name + ' downloaded: put it where the old one was'); return 'downloaded'; }
     const kind = await fileKind(h);
     // the Save window empties a file the moment it is chosen, so a fresh pick reads as empty: the name is the guard there
     if (fresh && !/\.html?$/i.test(h.name || '')) { alert('Not saved: “' + h.name + '” is not an .html file.'); return false; }
@@ -140,11 +145,12 @@ async function saveFile({ team }) {
     }
     await writeTo(h, html);
     await IDB.set(key, h);
+    CATALOG.meta.updated = stamp;
     toast('Saved to ' + h.name);
     return 'written';
   } catch (e) {
     if (e && e.name === 'AbortError') return false;   // the person closed the Save window
-    download(name, html);
+    download(name, html); CATALOG.meta.updated = stamp;
     toast('Could not write the file (' + (e && e.message || e) + '); downloaded instead');
     return 'downloaded';
   }
@@ -189,6 +195,9 @@ function linkForm(key, presetCat) {
     + field('eType', 'Type', '<select id="eType">' + typeOpts + '</select>', 'Excel, PowerPoint and Word open in the desktop app.') + '</div>'
     + '<div class="erow">' + field('eNote', 'Note', '<input id="eNote" maxlength="200" value="' + esc(v.note) + '" placeholder="What it is, who owns it; for a session, its topic (optional)" autocomplete="off">')
     + '<div class="ef dt">' + '<label for="eDate">Date</label><input id="eDate" type="date" value="' + esc(v.date || '') + '"><div class="eh">Optional: a session or deadline.</div></div></div>'
+    + field('eKw', 'Keywords', '<input id="eKw" maxlength="300" value="' + esc(v.keywords || '') + '" placeholder="Other words people search for: MIPR, DD 448, LES… (not shown)" autocomplete="off">')
+    + '<label class="echk"><input type="checkbox" id="eChk"' + (!c || !v.checked ? ' checked' : '') + '> I checked this link works today'
+    + (v.checked ? ' <span class="eh">(last checked ' + esc(dateTxt(v.checked)) + ')</span>' : '') + '</label>'
     + '<p class="eerr" id="eErr" role="alert"></p></div>'
     + '<footer>' + (c ? '<button type="button" class="btn danger" data-e="delLink" data-k="' + esc(key) + '">Delete</button>' : '')
     + '<span class="sp"></span><button type="button" class="btn" data-e="close">Cancel</button>'
@@ -197,7 +206,13 @@ function linkForm(key, presetCat) {
   const url = document.getElementById('eUrl'), type = document.getElementById('eType');
   let typed = !!c;
   type.addEventListener('change', () => { typed = true; });
-  url.addEventListener('input', () => { if (!typed) { const g = guessType(url.value); if (g) type.value = g; } });
+  const share = () => {   // a sharing link (…/:x:/…) may open the browser even from "Open in Excel"; say so where it matters
+    const h = document.getElementById('eUrl-h'), office = ['excel', 'powerpoint', 'word'].includes(type.value);
+    h.textContent = office && /\/:[xpw]:\//i.test(url.value) ? 'This is a sharing link. If “Open in ' + TYPES[type.value].appName + '” opens the browser instead, use the file’s own address (in SharePoint: the file’s details › Path, or Open in app and copy it from the app).'
+      : 'In Teams or SharePoint: the file’s ⋯ menu › Copy link. Leave it empty if you do not have it yet.';
+  };
+  url.addEventListener('input', () => { if (!typed) { const g = guessType(url.value); if (g) type.value = g; } share(); });
+  type.addEventListener('change', share); share();
 }
 function guessType(u) {
   u = String(u).toLowerCase();
@@ -221,6 +236,9 @@ function saveLink(key) {
   const date = g('eDate');
   if (date && !dateOk(date)) { err.textContent = 'That is not a date. Pick one from the calendar, or leave it empty.'; document.getElementById('eDate').focus(); return; }
   if (date) rec.date = date;
+  if (g('eKw')) rec.keywords = g('eKw');
+  const prev = key ? CATALOG.items.find(x => ckey(x) === key) : null;
+  if (document.getElementById('eChk').checked && url) rec.checked = today(); else if (prev && prev.checked && prev.url === url) rec.checked = prev.checked;
   if (key) {
     const i = CATALOG.items.findIndex(x => ckey(x) === key);
     // a link keeps its key (pins and recently opened follow it) however it is renamed
@@ -349,11 +367,28 @@ const MAINT_HOOKS = {
         case 'saveSection': saveSection(sId); break;
         case 'mv': moveSection(sId, +b.dataset.d); break;
         case 'close': dlgClose(); break;
+        case 'paste': pasteForm(); break;
+        case 'pasteCheck': pasteCheck(false); break;
+        case 'pasteAdd': pasteCheck(true); break;
+        case 'export': exportCsv(); break;
+        case 'checkList': checkList(); break;
+        case 'markChecked': markChecked(k); break;
+        case 'office': officeForm(); break;
+        case 'saveOffice': saveOffice(); break;
+        case 'news': newsList(); break;
+        case 'addNews': newsForm(-1); break;
+        case 'editNews': newsForm(+b.dataset.i); break;
+        case 'saveNews': saveNews(+b.dataset.i); break;
+        case 'delNews': delNews(+b.dataset.i); break;
+        case 'addTerm': termForm(''); break;
+        case 'editTerm': termForm(b.dataset.t); break;
+        case 'saveTerm': saveTerm(b.dataset.t); break;
+        case 'delTerm': delTerm(b.dataset.t); break;
       }
     });
     // Enter in a box saves it
     document.addEventListener('keydown', e => {
-      if (e.key !== 'Enter' || !e.target.closest('#sdlg .eform') || e.target.tagName === 'SELECT') return;
+      if (e.key !== 'Enter' || !e.target.closest('#sdlg .eform') || /^(SELECT|TEXTAREA)$/.test(e.target.tagName)) return;
       e.preventDefault(); document.querySelector('#sdlg footer .btn.pri')?.click();
     });
     if (CATALOG.fixed && CATALOG.fixed.length) setTimeout(() => toast('The catalog was read with ' + CATALOG.fixed.length + ' change(s); see the console'), 300), console.warn('catalog:', CATALOG.fixed);
@@ -361,12 +396,15 @@ const MAINT_HOOKS = {
   drawBar() {
     const bar = document.getElementById('maintBar'); if (!bar) return;
     const teamOld = ED.teamSig !== sigOf(CATALOG);
-    bar.innerHTML = '<span class="mt">Maintainer copy: keep this file to yourself.</span>'
+    bar.innerHTML = '<span class="mt">Maintainer copy: keep this file to yourself.' + (CATALOG.meta.contact ? '' : ' <button type="button" class="lnk" data-e="office">Add your contact email</button> so people can report broken links.') + '</span>'
       + '<button type="button" class="mb" data-e="toggle" aria-pressed="' + ED.on + '">' + (ED.on ? 'Done editing' : 'Edit catalog') + '</button>'
       + (ED.dirty ? '<span class="pill warn" role="status">Unsaved changes</span>' : '<span class="pill" role="status">Saved</span>')
       + (ED.undo ? '<button type="button" class="mb" data-e="undo">Undo delete</button>' : '')
       + '<span class="sp"></span>'
-      + (ED.on ? '<button type="button" class="mb" data-e="import">Import links from a copy…</button>' + (ED.dirty ? '<button type="button" class="mb" data-e="discard">Discard changes</button>' : '') : '')
+      + (ED.on ? '<button type="button" class="mb" data-e="paste">Paste from Excel…</button><button type="button" class="mb" data-e="export">Export to Excel</button>'
+        + '<button type="button" class="mb" data-e="checkList">Needs checking' + (needsCheck().length ? ' <b class="cnt">' + needsCheck().length + '</b>' : '') + '</button>'
+        + '<button type="button" class="mb" data-e="office">Office settings…</button>'
+        + '<button type="button" class="mb" data-e="import">Import links from a copy…</button>' + (ED.dirty ? '<button type="button" class="mb" data-e="discard">Discard changes</button>' : '') : '')
       + '<button type="button" class="mb pri" data-e="save"' + (ED.dirty ? '' : ' aria-disabled="true"') + '>Save</button>'
       + '<button type="button" class="mb" data-e="saveTeam" title="Write sustainment-dashboard.html, the copy for Teams">Save team copy…' + (teamOld ? ' <span class="dot-warn" aria-label="(out of date)">●</span>' : '') + '</button>';
   },
@@ -384,6 +422,207 @@ const MAINT_HOOKS = {
       + '<button type="button" class="shb" data-e="mv" data-s="' + esc(g.id) + '" data-d="1" title="Move later" aria-label="Move ' + esc(g.name) + ' later"' + (i < cats().length - 1 ? '' : ' disabled') + '>▶</button></span>';
   },
   catalogFoot: () => '<div class="addsec"><button type="button" class="btn" data-e="addSection">+ Add a section</button></div>',
+  newsActs: () => ED.on ? ' <span class="nacts"><button type="button" class="btn sm" data-e="addNews">+ Announcement</button>' + ((CATALOG.notices || []).length ? '<button type="button" class="btn sm" data-e="news">All announcements</button>' : '') + '</span>' : '',
+  glossFoot: () => ED.on ? '<div class="addsec top"><button type="button" class="btn" data-e="addTerm">+ Add a term</button></div>' : '',
+  termActs: g => ED.on ? ' <button type="button" class="lic ed" data-e="editTerm" data-t="' + esc(g.term) + '" aria-label="Change ' + esc(g.term) + '">' + UI.edit + '</button><button type="button" class="lic ed danger" data-e="delTerm" data-t="' + esc(g.term) + '" aria-label="Delete ' + esc(g.term) + '">' + UI.trash + '</button>' : '',
   // a new section joins the Everything tab; take the person there so they see it arrive
   footNote: () => ' Tools are listed in src/tools.js; links are edited here, with Edit catalog.',
 };
+
+
+// ===================================================================================================================
+// THE OFFICE TOOLS: settings, links that need checking, Excel in and out, announcements, the glossary
+
+// ---- office settings: who broken-link reports and suggestions go to
+function officeForm() {
+  dlg('<header><h2 id="sdlgT">Office settings</h2><button type="button" class="x" data-e="close" aria-label="Close">×</button></header><div class="eform">'
+    + field('oMail', 'Contact email', '<input id="oMail" type="email" maxlength="120" value="' + esc(CATALOG.meta.contact || '') + '" placeholder="the address reports and suggestions go to" autocomplete="off">',
+      'Shown to the team: the ⚑ on every link and Suggest a link open an email to this address. A shared office mailbox outlasts any one person.')
+    + field('oName', 'Office name', '<input id="oName" maxlength="80" value="' + esc(CATALOG.meta.office || '') + '" placeholder="optional" autocomplete="off">')
+    + '<p class="eerr" id="eErr" role="alert"></p></div><footer><span class="sp"></span><button type="button" class="btn" data-e="close">Cancel</button><button type="button" class="btn pri" data-e="saveOffice">Save settings</button></footer>', '#oMail');
+}
+function saveOffice() {
+  const m = document.getElementById('oMail').value.trim(), o = document.getElementById('oName').value.trim();
+  if (m && !emailOk(m)) { document.getElementById('eErr').textContent = 'That is not an email address.'; return; }
+  if (m) CATALOG.meta.contact = m; else delete CATALOG.meta.contact;
+  if (o) CATALOG.meta.office = o; else delete CATALOG.meta.office;
+  dlgClose(); edKeep(); toast('Settings changed (not saved yet)');
+}
+
+// ---- links nobody has checked lately (half a year), and links still waiting for an address
+const CHECK_DAYS = 180;
+function needsCheck() {
+  const cut = (() => { const d = new Date(); d.setDate(d.getDate() - CHECK_DAYS); return d.toISOString().slice(0, 10); })();
+  return citems().filter(c => linkOk(c.url) && (!c.checked || c.checked < cut)).sort((a, b) => String(a.checked || '').localeCompare(String(b.checked || '')));
+}
+function checkList() {
+  const due = needsCheck(), none = citems().filter(c => !linkOk(c.url));
+  const row = c => '<li class="lrow">' + typeTile(c) + '<span class="lmain">' + (hrefOf(c) ? aOpen(c, ckey(c), 'cname', esc(c.name)) : '<span class="cname">' + esc(c.name) + '</span>')
+    + '<small>' + esc((catOf(c) || {}).name || 'Other') + ' · ' + (c.checked ? 'last checked ' + esc(dateTxt(c.checked)) : 'never checked') + '</small></span>'
+    + (linkOk(c.url) ? '<button type="button" class="btn sm" data-e="markChecked" data-k="' + esc(ckey(c)) + '">It works</button>' : '<button type="button" class="btn sm" data-e="editLink" data-k="' + esc(ckey(c)) + '">Add its link</button>') + '</li>';
+  dlg('<header><h2 id="sdlgT">Links that need checking</h2><button type="button" class="x" data-e="close" aria-label="Close">×</button></header><div class="eform">'
+    + '<p class="eh">Open each one; if it still goes to the right place, press It works. Links not checked in ' + CHECK_DAYS + ' days are listed, oldest first.</p>'
+    + (due.length ? '<ul class="llist boxed">' + due.map(row).join('') + '</ul>' : '<p class="sempty">Every link has been checked in the last ' + CHECK_DAYS + ' days.</p>')
+    + (none.length ? '<h3 class="eh3">No link yet (' + none.length + ')</h3><ul class="llist boxed">' + none.map(row).join('') + '</ul>' : '')
+    + '</div><footer><span class="sp"></span><button type="button" class="btn pri" data-e="close">Done</button></footer>', 'button');
+}
+function markChecked(k) {
+  const c = CATALOG.items.find(x => ckey(x) === k); if (!c) return;
+  c.checked = today(); edKeep(); checkList(); toast('“' + c.name + '” checked');
+}
+
+// ---- Excel out: every link as a spreadsheet (CSV, which Excel opens), for a review, a backup or a hand-over
+const csvCell = v => {
+  let t = String(v == null ? '' : v);
+  if (/^[=+\-@\t\r]/.test(t)) t = "'" + t;   // a cell Excel would run as a formula is written as text
+  return /[",\n\r]/.test(t) ? '"' + t.replace(/"/g, '""') + '"' : t;
+};
+const CSV_COLS = ['Name', 'Link', 'Section', 'Type', 'Note', 'Date', 'Keywords', 'Last checked'];
+function exportCsv() {
+  const rows = [CSV_COLS].concat(citems().sort((a, b) => cats().findIndex(k => k.id === a.category) - cats().findIndex(k => k.id === b.category) || linkOrder(a, b))
+    .map(c => [c.name, c.url, (catOf(c) || {}).name || 'Other', (TYPES[c.type] || TYPES.web).label, c.note, c.date || '', c.keywords || '', c.checked || '']));
+  const csv = '\ufeff' + rows.map(r => r.map(csvCell).join(',')).join('\r\n') + '\r\n';
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' })); a.download = 'sustainment-dashboard-links-' + today() + '.csv';
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+  toast('Exported ' + (rows.length - 1) + ' links');
+}
+
+// ---- Excel in: rows pasted from a spreadsheet. Checked first, then added in one go; a name already in the catalog is
+// that link, changed; a section that does not exist yet is made.
+function pasteForm() {
+  dlg('<header><h2 id="sdlgT">Paste links from Excel</h2><button type="button" class="x" data-e="close" aria-label="Close">×</button></header><div class="eform">'
+    + '<p class="eh">In Excel, select the rows (with their heading row) and copy; paste them below. Columns, by heading: <b>Name</b> and <b>Link</b>, and any of Section, Type, Note, Date, Keywords. '
+    + 'Without headings the columns are read in that order. A name already in the catalog updates that link; a new section is made for you. Type left empty is worked out from the link.</p>'
+    + '<textarea id="pIn" rows="9" spellcheck="false" placeholder="Name&#9;Link&#9;Section&#9;Type&#9;Note"></textarea>'
+    + '<div id="pOut" role="status"></div></div>'
+    + '<footer><span class="sp"></span><button type="button" class="btn" data-e="close">Cancel</button><button type="button" class="btn" data-e="pasteCheck">Check</button>'
+    + '<button type="button" class="btn pri" data-e="pasteAdd" disabled>Add them</button></footer>', '#pIn');
+  document.getElementById('pIn').addEventListener('input', () => { document.querySelector('[data-e="pasteAdd"]').disabled = true; document.getElementById('pOut').innerHTML = ''; });
+}
+function splitRows(t) {   // tab-separated (what Excel copies) or comma-separated, with quoted cells
+  const sep = t.includes('\t') ? '\t' : ',', rows = []; let row = [], cell = '', q = false;
+  for (let i = 0; i < t.length; i++) {
+    const ch = t[i];
+    if (q) { if (ch === '"' && t[i + 1] === '"') { cell += '"'; i++; } else if (ch === '"') q = false; else cell += ch; continue; }
+    if (ch === '"' && cell === '') q = true;
+    else if (ch === sep) { row.push(cell); cell = ''; }
+    else if (ch === '\n' || ch === '\r') { if (ch === '\r' && t[i + 1] === '\n') i++; row.push(cell); rows.push(row); row = []; cell = ''; }
+    else cell += ch;
+  }
+  if (cell !== '' || row.length) { row.push(cell); rows.push(row); }
+  return rows.map(r => r.map(c => c.trim())).filter(r => r.some(Boolean));
+}
+function pasteDate(v) {
+  if (!v) return '';
+  if (dateOk(v)) return v;
+  const m = /^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/.exec(v);   // 11/22/2026, as Excel shows a date in the US
+  if (m) { const y = m[3].length === 2 ? '20' + m[3] : m[3], d = y + '-' + m[1].padStart(2, '0') + '-' + m[2].padStart(2, '0'); if (dateOk(d)) return d; }
+  return null;
+}
+function pasteCheck(apply) {
+  const out = document.getElementById('pOut'), rows = splitRows(document.getElementById('pIn').value);
+  if (!rows.length) { out.innerHTML = '<p class="eerr">Nothing to read: paste the rows first.</p>'; return; }
+  const H = { name: /^(name|title)$/, url: /^(link|url|address|web address)$/, section: /^(section|category|group)$/, type: /^(type|kind)$/, note: /^(note|notes|description|topic)$/, date: /^(date|when)$/, keywords: /^(keywords?|tags?)$/ };
+  const first = rows[0].map(c => c.toLowerCase()), col = {};
+  const hasHead = first.some(c => H.name.test(c)) && first.some(c => H.url.test(c));
+  if (hasHead) first.forEach((c, i) => { for (const k in H) if (H[k].test(c) && !(k in col)) col[k] = i; });
+  else ['name', 'url', 'section', 'type', 'note', 'date', 'keywords'].forEach((k, i) => { col[k] = i; });
+  const body = hasHead ? rows.slice(1) : rows, errs = [], adds = [], upd = [], newSecs = new Map();
+  const typeOf = v => { const l = v.toLowerCase(); return Object.keys(TYPES).find(k => k === l || TYPES[k].label.toLowerCase() === l) || (l === 'website' || l === 'site' ? 'web' : l === 'video' ? 'video' : ''); };
+  body.forEach((r, i) => {
+    const n = (hasHead ? i + 2 : i + 1), get = k => (col[k] === undefined ? '' : (r[col[k]] || ''));
+    const name = get('name'), url = get('url'), secName = get('section'), tv = get('type'), date = pasteDate(get('date'));
+    if (!name) { errs.push('row ' + n + ': no name'); return; }
+    if (url && !linkOk(url)) { errs.push('row ' + n + ' (' + name + '): the link must start with https://'); return; }
+    if (date === null) { errs.push('row ' + n + ' (' + name + '): “' + get('date') + '” is not a date'); return; }
+    let type = tv ? typeOf(tv) : (guessType(url) || 'web');
+    if (!type) { errs.push('row ' + n + ' (' + name + '): type “' + tv + '” is not one of ' + Object.values(TYPES).map(t => t.label).join(', ')); return; }
+    let sec = secName ? cats().find(k => k.name.toLowerCase() === secName.toLowerCase() || k.id === secName.toLowerCase()) : null;
+    if (secName && !sec) { const key = secName.toLowerCase(); if (!newSecs.has(key)) newSecs.set(key, secName); }
+    const rec = { name, url, note: get('note'), type, secName, date: date || '', keywords: get('keywords') };
+    (citems().some(c => c.name.toLowerCase() === name.toLowerCase()) ? upd : adds).push(rec);
+  });
+  const sum = '<p><b>' + adds.length + '</b> new link' + (adds.length === 1 ? '' : 's') + ', <b>' + upd.length + '</b> to update'
+    + (newSecs.size ? ', new section' + (newSecs.size > 1 ? 's' : '') + ': ' + [...newSecs.values()].map(esc).join(', ') : '') + '.</p>'
+    + (errs.length ? '<p class="eerr">' + errs.length + ' row' + (errs.length > 1 ? 's' : '') + ' left out:</p><ul class="perr">' + errs.slice(0, 12).map(e => '<li>' + esc(e) + '</li>').join('') + (errs.length > 12 ? '<li>…and ' + (errs.length - 12) + ' more</li>' : '') + '</ul>' : '');
+  if (!apply) { out.innerHTML = sum; document.querySelector('[data-e="pasteAdd"]').disabled = !(adds.length + upd.length); return; }
+  for (const [key, nm] of newSecs) CATALOG.categories.push({ id: slugId(nm, new Set(cats().map(k => k.id))), name: nm, blurb: '' });
+  const secId = nm => nm ? (cats().find(k => k.name.toLowerCase() === nm.toLowerCase() || k.id === nm.toLowerCase()) || {}).id : ((cats()[0] || {}).id || '');
+  const taken = new Set(CATALOG.items.map(x => ckey(x).slice(2)));
+  for (const r of adds.concat(upd)) {
+    const ex = CATALOG.items.find(c => c.name.toLowerCase() === r.name.toLowerCase());
+    const it = ex || { name: r.name, id: slugId(r.name, taken), note: '', url: '', type: r.type, category: secId(r.secName) };
+    if (!ex) { taken.add(it.id); CATALOG.items.push(it); }
+    if (r.url) { if (r.url !== it.url) delete it.checked; it.url = r.url; }
+    if (r.note) it.note = r.note;
+    if (r.secName || !ex) it.category = secId(r.secName);
+    if (r.type) it.type = r.type;
+    if (r.date) it.date = r.date;
+    if (r.keywords) it.keywords = r.keywords;
+  }
+  dlgClose(); edKeep();
+  toast('Added ' + adds.length + ', updated ' + upd.length + ' (not saved yet)');
+}
+
+// ---- announcements ("What's new")
+function newsList() {
+  const N = CATALOG.notices || [];
+  dlg('<header><h2 id="sdlgT">Announcements</h2><button type="button" class="x" data-e="close" aria-label="Close">×</button></header><div class="eform">'
+    + (N.length ? '<ul class="llist boxed">' + N.map((n, i) => '<li class="lrow"><span class="lmain"><span class="cname nolink">' + esc(n.text) + '</span><small>posted ' + esc(dateTxt(n.date))
+      + (n.until ? ' · shows until ' + esc(dateTxt(n.until)) + (n.until < today() ? ' (ended)' : '') : '') + '</small></span>'
+      + '<button type="button" class="lic ed" data-e="editNews" data-i="' + i + '" aria-label="Change">' + UI.edit + '</button><button type="button" class="lic ed danger" data-e="delNews" data-i="' + i + '" aria-label="Delete">' + UI.trash + '</button></li>').join('') + '</ul>'
+      : '<p class="sempty">No announcements.</p>')
+    + '</div><footer><span class="sp"></span><button type="button" class="btn" data-e="close">Done</button><button type="button" class="btn pri" data-e="addNews">+ Announcement</button></footer>', 'button');
+}
+function newsForm(i) {
+  const n = i >= 0 ? CATALOG.notices[i] : { text: '', date: today(), until: '', url: '' };
+  dlg('<header><h2 id="sdlgT">' + (i >= 0 ? 'Change an announcement' : 'Add an announcement') + '</h2><button type="button" class="x" data-e="close" aria-label="Close">×</button></header><div class="eform">'
+    + field('nText', 'Announcement', '<textarea id="nText" rows="3" maxlength="300">' + esc(n.text) + '</textarea>')
+    + field('nUrl', 'Link', '<input id="nUrl" type="url" maxlength="2000" placeholder="https://… (optional)" value="' + esc(n.url || '') + '" autocomplete="off">')
+    + '<div class="erow">' + field('nDate', 'Posted', '<input id="nDate" type="date" value="' + esc(n.date) + '">') + field('nUntil', 'Show until', '<input id="nUntil" type="date" value="' + esc(n.until || '') + '">', 'Empty: until you delete it.') + '</div>'
+    + '<p class="eerr" id="eErr" role="alert"></p></div><footer>' + '<span class="sp"></span><button type="button" class="btn" data-e="close">Cancel</button>'
+    + '<button type="button" class="btn pri" data-e="saveNews" data-i="' + i + '">' + (i >= 0 ? 'Save changes' : 'Add announcement') + '</button></footer>', '#nText');
+}
+function saveNews(i) {
+  const v = id => document.getElementById(id).value.trim(), err = document.getElementById('eErr');
+  const n = { text: v('nText'), date: v('nDate') || today() };
+  if (!n.text) { err.textContent = 'Write the announcement.'; return; }
+  if (!dateOk(n.date) || (v('nUntil') && !dateOk(v('nUntil')))) { err.textContent = 'Pick the dates from the calendar.'; return; }
+  if (v('nUntil')) { if (v('nUntil') < n.date) { err.textContent = '“Show until” is before the day it is posted.'; return; } n.until = v('nUntil'); }
+  if (v('nUrl')) { if (!linkOk(v('nUrl'))) { err.textContent = 'The link must start with https://.'; return; } n.url = v('nUrl'); }
+  CATALOG.notices = CATALOG.notices || [];
+  if (i >= 0) CATALOG.notices[i] = n; else CATALOG.notices.push(n);
+  dlgClose(); edKeep(); toast('Announcement ' + (i >= 0 ? 'changed' : 'added') + ' (not saved yet)');
+}
+function delNews(i) {
+  const n = CATALOG.notices[i]; if (!n || !confirm('Delete the announcement “' + n.text.slice(0, 80) + '”?')) return;
+  CATALOG.notices.splice(i, 1); edKeep(); newsList();
+}
+
+// ---- the glossary
+function termForm(term) {
+  const g = term ? glossary().find(x => x.term === term) : { term: '', meaning: '', url: '' };
+  dlg('<header><h2 id="sdlgT">' + (term ? 'Change a term' : 'Add a term') + '</h2><button type="button" class="x" data-e="close" aria-label="Close">×</button></header><div class="eform">'
+    + field('gTerm', 'Term', '<input id="gTerm" maxlength="60" value="' + esc(g.term) + '" placeholder="UFR" autocomplete="off">')
+    + field('gMean', 'What it means', '<textarea id="gMean" rows="4" maxlength="600" placeholder="Unfunded Requirement: …">' + esc(g.meaning) + '</textarea>')
+    + field('gUrl', 'Read more', '<input id="gUrl" type="url" maxlength="2000" placeholder="https://… (optional)" value="' + esc(g.url || '') + '" autocomplete="off">')
+    + '<p class="eerr" id="eErr" role="alert"></p></div><footer><span class="sp"></span><button type="button" class="btn" data-e="close">Cancel</button>'
+    + '<button type="button" class="btn pri" data-e="saveTerm" data-t="' + esc(term) + '">' + (term ? 'Save changes' : 'Add term') + '</button></footer>', '#gTerm');
+}
+function saveTerm(old) {
+  const v = id => document.getElementById(id).value.trim(), err = document.getElementById('eErr');
+  const e = { term: v('gTerm'), meaning: v('gMean') };
+  if (!e.term || !e.meaning) { err.textContent = 'Give the term and what it means.'; return; }
+  if (glossary().some(x => x.term !== old && x.term.toLowerCase() === e.term.toLowerCase())) { err.textContent = 'That term is already in the glossary.'; return; }
+  if (v('gUrl')) { if (!linkOk(v('gUrl'))) { err.textContent = 'The link must start with https://.'; return; } e.url = v('gUrl'); }
+  CATALOG.glossary = CATALOG.glossary || [];
+  const i = CATALOG.glossary.findIndex(x => x.term === old);
+  if (old && i >= 0) CATALOG.glossary[i] = e; else CATALOG.glossary.push(e);
+  dlgClose(); edKeep(); toast('Term ' + (old ? 'changed' : 'added') + ' (not saved yet)');
+}
+function delTerm(term) {
+  const i = CATALOG.glossary.findIndex(x => x.term === term);
+  if (i < 0 || !confirm('Delete “' + term + '” from the glossary?')) return;
+  CATALOG.glossary.splice(i, 1); edKeep(); toast('Deleted “' + term + '”');
+}

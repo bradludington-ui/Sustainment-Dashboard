@@ -135,6 +135,95 @@ ok((await r.$$eval('#main .lrow .cname', a => a.map(x => x.textContent))).includ
   await t.click('[data-e="saveLink"]');
   ok(/not a date/.test(await t.$eval('#eErr', e => e.textContent)), 'a date that is not a day is refused');
 }
+// the office hub: settings, report and suggest, the updated stamp, a downloaded copy, keywords, checking, Excel in and
+// out, announcements and coming up, the glossary, Help
+{
+  const ctx5 = await b.newContext({ acceptDownloads: true }); const h = await ctx5.newPage();
+  h.on('pageerror', e => errs.push('hub: ' + e.message)); h.on('dialog', d => d.accept());
+  await h.addInitScript(() => { delete window.showSaveFilePicker; });
+  copyFileSync(ROOT + 'maintainer/sustainment-dashboard-maintainer.html', D + 'hub.html');
+  await h.goto('file://' + D + 'hub.html');
+  const names = () => h.$$eval('#main .lrow .cname', a => a.map(x => x.textContent));
+  const iso = n => { const d = new Date(); d.setDate(d.getDate() + n); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
+  await h.click('[data-e="toggle"]');
+  // office settings
+  await h.click('.maint [data-e="office"] >> nth=-1'); await h.fill('#oMail', 'not an address'); await h.click('[data-e="saveOffice"]');
+  ok(/not an email/.test(await h.$eval('#eErr', e => e.textContent)), 'a contact that is not an email address is refused');
+  await h.fill('#oMail', 'office.box@example.mil'); await h.click('[data-e="saveOffice"]');
+  // a link with keywords, checked today; another never checked
+  await h.click('[data-e="addLink"][data-s="forms"]'); await h.fill('#eName', 'DD 448'); await h.fill('#eUrl', 'https://forms.example.mil/dd448.pdf'); await h.fill('#eKw', 'MIPR interdepartmental');
+  await h.click('[data-e="saveLink"]');
+  await h.click('[data-e="addLink"][data-s="websites"]'); await h.fill('#eName', 'Old site'); await h.fill('#eUrl', 'https://old.example.mil/'); await h.uncheck('#eChk'); await h.click('[data-e="saveLink"]');
+  await h.click('[data-e="checkList"]');
+  const due = await h.$$eval('#sdlg .lrow .cname', a => a.map(x => x.textContent));
+  ok(due.includes('Old site') && !due.includes('DD 448'), 'Needs checking lists the unchecked link, not the one checked today');
+  await h.click('#sdlg [data-e="markChecked"][data-k="c:old-site"]');
+  ok(!(await h.$$eval('#sdlg .lrow .cname', a => a.map(x => x.textContent))).includes('Old site'), 'It works marks a link checked');
+  await h.click('#sdlg footer [data-e="close"]');
+  // paste from Excel: headings, a new section, a US date, an update, a bad row
+  await h.click('[data-e="paste"]');
+  await h.fill('#pIn', 'Name\tLink\tSection\tType\tNote\tDate\nTSP\thttps://www.tsp.gov/\tBenefits\t\tThrift Savings Plan\t\nSFCB board\thttps://x.sharepoint.com/b.pptx\tBriefings & slides\tPowerPoint\tNext board\t12/15/2026\nDD 448\thttps://forms.example.mil/dd448-v2.pdf\t\t\t\t\nBroken\tjavascript:alert(1)\tTrackers\t\t\t\n');
+  await h.click('[data-e="pasteCheck"]');
+  const chk = await h.$eval('#pOut', e => e.textContent);
+  ok(/2 new links, 1 to update, new section: Benefits/.test(chk) && /row 5 \(Broken\)/.test(chk), 'Paste from Excel: checked first, with the bad row named');
+  await h.click('[data-e="pasteAdd"]');
+  ok((await names()).includes('TSP') && (await h.$$eval('#main .scard h3', a => a.map(x => x.textContent))).includes('Benefits'), 'pasted links are added, and their new section made');
+  // export to Excel
+  const [csvD] = await Promise.all([h.waitForEvent('download'), h.click('[data-e="export"]')]);
+  await csvD.saveAs(D + 'links.csv'); const csv = readFileSync(D + 'links.csv', 'utf8'); if (process.env.SHOW_CSV) console.log(csv);
+  ok(/^﻿Name,Link,Section,Type,Note,Date,Keywords,Last checked/.test(csv) && /DD 448,https:\/\/forms\.example\.mil\/dd448-v2\.pdf,Forms,PDF,,,MIPR interdepartmental,\r?\n/.test(csv), 'Export to Excel writes every link, the pasted update included (a new address clears its last-checked date)');
+  ok(/SFCB board,[^\n]*,2026-12-15,/.test(csv), 'a pasted US date is stored as a date');
+  // announcements: one showing, one already ended
+  await h.click('.tabs [data-tab="all"]');
+  await h.click('[data-e="addNews"]'); await h.fill('#nText', 'Closeout guidance is out'); await h.fill('#nUrl', 'https://x.sharepoint.com/closeout'); await h.click('[data-e="saveNews"]');
+  await h.click('[data-e="addNews"]'); await h.fill('#nText', 'An old notice'); await h.fill('#nDate', iso(-20)); await h.fill('#nUntil', iso(-1)); await h.click('[data-e="saveNews"]');
+  // glossary
+  await h.click('.tabs [data-tab="gloss"]');
+  await h.click('[data-e="addTerm"]'); await h.fill('#gTerm', 'ufr'); await h.fill('#gMean', 'dup'); await h.click('[data-e="saveTerm"]');
+  ok(/already in the glossary/.test(await h.$eval('#eErr', e => e.textContent)), 'a term already in the glossary is refused');
+  await h.fill('#gTerm', 'SFCB'); await h.fill('#gMean', 'The office’s funding board.'); await h.click('[data-e="saveTerm"]');
+  // save the team copy, and open it as the team would
+  await h.click('[data-e="toggle"]');
+  const [td] = await Promise.all([h.waitForEvent('download'), h.click('[data-e="saveTeam"]')]);
+  const { mkdirSync } = await import('node:fs'); mkdirSync(D + 'Downloads', { recursive: true });
+  await td.saveAs(D + 'hub-team.html'); copyFileSync(D + 'hub-team.html', D + 'Downloads/hub-team.html');
+  const ctx6 = await b.newContext(); const t = await ctx6.newPage(); t.on('pageerror', e => errs.push('hub team: ' + e.message));
+  await t.goto('file://' + D + 'hub-team.html');
+  ok(/Links updated \d+ \w{3} \d{4}/.test(await t.$eval('#updStamp', e => e.textContent)), 'the team copy says when its links were updated');
+  ok(!(await t.$eval('#staleNote', e => e.textContent)), 'no downloaded-copy note when opened from its own place');
+  const sug = await t.$eval('#suggestSlot a', a => a.getAttribute('href'));
+  ok(sug.startsWith('mailto:office.box@example.mil?subject=Suggestion'), 'Suggest a link emails the office contact');
+  const rep = await t.$eval('a[aria-label="Report a broken link: TSP"]', a => decodeURIComponent(a.getAttribute('href')));
+  ok(rep.startsWith('mailto:office.box@example.mil?') && rep.includes('“TSP”') && rep.includes('https://www.tsp.gov/'), 'the flag on a link emails a report naming it and its address');
+  const newsTxt = await t.$eval('.news', e => e.textContent);
+  ok(newsTxt.includes('Closeout guidance is out') && !newsTxt.includes('An old notice'), 'What’s new shows the announcement, not the ended one');
+  ok(newsTxt.includes('SFCB board') || !(iso(30) >= '2026-12-15' && iso(0) <= '2026-12-15'), 'Coming up lists a dated link in the next 30 days');
+  await t.fill('#q', 'interdepartmental'); await t.dispatchEvent('#q', 'input');
+  ok((await t.$$eval('#main .lrow .cname', a => a.map(x => x.textContent))).includes('DD 448'), 'search finds a link by a keyword it does not show');
+  await t.fill('#q', 'funding board'); await t.dispatchEvent('#q', 'input');
+  ok((await t.$$eval('#main .gt dt', a => a.map(x => x.textContent))).includes('SFCB'), 'search finds a glossary term by its meaning');
+  await t.fill('#q', ''); await t.dispatchEvent('#q', 'input');
+  await t.click('.tabs [data-tab="gloss"]');
+  const terms = await t.$$eval('#main .gt dt', a => a.map(x => x.textContent));
+  ok(terms.length >= 16 && terms.includes('PPBE') && terms.includes('SFCB'), 'the Glossary tab lists the starting terms and the added one');
+  ok(JSON.stringify(terms) === JSON.stringify(terms.slice().sort((a, x) => a.localeCompare(x, undefined, { sensitivity: 'base' }))), 'the glossary is A to Z');
+  // hovering a row shows its extra controls over the row and moves nothing (a version that widened the row rewrapped the
+  // name, rebalanced the columns and made the cards jump under the pointer)
+  const boxes = () => t.$$eval('.scard', a => a.map(x => { const r = x.getBoundingClientRect(); return [Math.round(r.x), Math.round(r.y + scrollY), Math.round(r.height)].join(','); }).join(' '));
+  await t.click('.tabs [data-tab="all"]');
+  const row = '.scard .lrow:has(a.cname) >> nth=0';   // a row with a link, so it has controls to show
+  const nameW = () => t.$eval('.scard .lrow:has(a.cname) .lmain', e => Math.round(e.getBoundingClientRect().width));
+  const before = await boxes(), w0 = await nameW(); await t.hover(row);
+  ok(await t.$eval('.scard .lrow:has(a.cname) .lmore', e => getComputedStyle(e).opacity === '1') && (await boxes()) === before && (await nameW()) === w0, 'hovering a row shows its controls and moves nothing, not even its name');
+  await t.click('.tabs [data-tab="gloss"]');
+  await t.click('#helpBtn');
+  ok(await t.$eval('#hdlg', d => d.open) && /office\.box@example\.mil/.test(await t.$eval('#hdlg', d => d.textContent)), 'Help opens, and names where reports go');
+  await t.keyboard.press('Escape');
+  ok(!(await t.$eval('#hdlg', d => d.open)), 'Esc closes Help');
+  ok(!(await t.$('[data-e]')) && !(await t.$('.maint')), 'the team copy still has no editor');
+  await t.goto('file://' + D + 'Downloads/hub-team.html');
+  ok(/downloaded copy/.test(await t.$eval('#staleNote', e => e.textContent)), 'a copy opened from Downloads says it may be out of date');
+}
 console.log('page errors:', errs.length ? errs : 'none'); await b.close();
 if (failed || errs.length) { console.error(failed + ' FAILING, ' + errs.length + ' page error(s)'); process.exit(1); }
 console.log('ALL PASSED');

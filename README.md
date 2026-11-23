@@ -25,16 +25,27 @@ Everything the page shows comes from one file, **`src/tools.js`**. Its header ex
 
 ## The catalog: files, websites and forms
 
-On the page under **Catalog**: trackers, briefings, forms, job websites, Air Force and Navy employee links, references
-and team sites, each a section card. The **Files**, **Websites** and **Forms** tabs gather links by what they are,
-whatever section they sit in; a section marked **Show as a tab** (Air Force, Navy and Training to start) gets a tab of its own.
+On the page under **Catalog**: Start here (for new people), trackers, briefings, forms, job websites, Air Force and Navy
+employee links, training, references and team sites, each a section card. The **Files**, **Websites** and **Forms** tabs
+gather links by what they are, whatever section they sit in; a section marked **Show as a tab** (Air Force, Navy and
+Training to start) gets a tab of its own. Excel, PowerPoint and Word links open in the desktop app (**Open in Excel**),
+not the browser preview; hover a link for **Browser**, **Copy link** and **⚑ report**.
 
 **Training** holds the schedule and every session. Give a session's link a **date** (and its topic as the note): the
-Training tab then splits into **Schedule & resources** (links with no date, such as the schedule itself), **Upcoming**
-(soonest first, today included) and **Past sessions** (newest first). Any section works the same way once its links
-carry dates, and a session recording can use the **Recording** type. Excel, PowerPoint and Word links open in the desktop app (**Open in Excel**), not the
-browser preview; **Browser** opens the web version; everything else opens in a new tab. Anyone can **pin** the links they
-use most (kept in their own browser), and the search box covers tools and the catalog together.
+Training tab then splits into **Schedule & resources** (links with no date), **Upcoming** (soonest first, today included)
+and **Past sessions** (newest first). Any section works the same way once its links carry dates, and a recording can use
+the **Recording** type.
+
+### What the team sees
+
+- **What's new** (your announcements) and **Coming up** (every dated link in the next 30 days) at the top of Everything.
+- **Links updated 22 Nov 2026** in the welcome band, so anyone can tell how current their copy is. A copy opened from a
+  **Downloads** folder says it is a downloaded copy that will not change, and to open the dashboard from Teams.
+- **⚑ Report a broken link** on every link and **Suggest a link** at the top: each opens an email to the office
+  contact with the details filled in (set the address in Office settings; until then they do not show).
+- **Search** reads names, notes, hidden **keywords** (MIPR finds DD 448) and the **Glossary**.
+- **Glossary**: the office's terms, A to Z, starting with fifteen (ATR, BTR, CR, FYDP, PPBE, UFR…). Check the wording.
+- **Help**: how the page works, in six questions (up to date? why Excel? pins? search? broken link? phone?).
 
 ### Adding, changing and deleting links
 
@@ -47,10 +58,21 @@ In your **maintainer copy** (below), press **Edit catalog**:
 - Every edit is kept in your browser at once, so a closed tab loses nothing; the bar says **Unsaved changes**.
 - **Save** writes your maintainer file. **Save team copy…** writes `sustainment-dashboard.html` with the same links and
   no editor: upload that one to Teams. A ● on the button means the team copy is out of date.
+- **Paste from Excel…**: copy rows from a spreadsheet (headings Name, Link, and any of Section, Type, Note, Date,
+  Keywords) and paste. It is checked first and says what it will add, update and leave out; a new section is made; a
+  name already in the catalog updates that link. **Export to Excel** writes every link as a spreadsheet (a backup, a
+  review list, a hand-over).
+- **Needs checking** lists links nobody has checked in 180 days, oldest first: open each, press **It works**. A link's
+  box has **I checked this link works today**.
+- **Office settings…**: the contact email reports and suggestions go to (a shared office mailbox outlasts any one person).
+- **+ Announcement** on What's new (with a "show until" date), and **+ Add a term** on the Glossary tab.
 - **Import links from a copy…** takes the links from another saved copy. Use it when you download a newer version
   of the dashboard, so your links come with you.
 
 The links live inside the saved files, not in this repository: `src/catalog.js` is only what a fresh build starts with.
+
+**Keep your maintainer file in OneDrive** (it keeps every version), **export to Excel now and then**, and give a second
+person a copy of the maintainer file: it is the only full record of the catalog.
 
 ## Your maintainer copy: the latest versions
 
@@ -80,4 +102,5 @@ so the panel says what is on Teams.
 | `build.mjs` | Puts the four together into one file. |
 | `tools/check.mjs` | `npm run check`. |
 | `tools/editor-test.mjs` | `npm test`: the page driven in Chromium, end to end (editor, saving, tabs, search, pins). |
+| `tools/a11y.mjs` | `npm run a11y`: Section 508 / WCAG 2.2 AA with axe-core, in every tab, both copies, while editing. |
 | `tools/shoot.mjs` | `npm run shoot -- out.png [--links] [--catalog] [--maint [--settings]] [--full] [--width N]`: a screenshot in Chromium. |
