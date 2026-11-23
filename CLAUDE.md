@@ -26,7 +26,7 @@ dashboard, and more). See README.md for what it is and how it is updated.
   delete"). It is a JSON block, `<script id="catData">`, read by `readCatalog()` → `normCatalog()` (the one reading of a
   catalog, also used by Import). Brad edits it in the maintainer copy (Edit catalog, `src/maint.js`); Save writes the
   maintainer file, Save team copy writes the team file. `src/catalog.js` is only the STARTING catalog of a fresh build:
-  never assume it matches what Brad's files hold. A new build carries his links across with Import links from a copy.
+  never assume it matches what Brad's files hold. A new build carries his links across with Import from last version (`importFile` → Replace or `importMerge`). `VERSION` in app.js is written into every saved file as `meta.version`: raise it on every functional change.
 - **The team copy is the maintainer copy with the fences cut out.** `sources.js` and `maint.js` are built inside
   `/*@MAINT>*/ … /*<MAINT@*/`; `teamOf()` in build.mjs and `htmlWith(…, true)` in maint.js cut them the same way, so the
   page's own Save team copy and the build cannot drift apart. A fence marker never appears literally in a source file

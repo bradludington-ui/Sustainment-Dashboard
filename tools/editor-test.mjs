@@ -95,10 +95,26 @@ ok((await q.$$eval('#main .lrow .cname', a => a.map(x => x.textContent))).includ
 // import links from a copy into a fresh build
 const ctx3 = await b.newContext(); const r = await ctx3.newPage(); r.on('pageerror', e => errs.push('import: ' + e.message)); r.on('dialog', d => d.accept());
 copyFileSync(ROOT + 'maintainer/sustainment-dashboard-maintainer.html', D + 'fresh.html');
-await r.goto('file://' + D + 'fresh.html'); await r.click('[data-e="toggle"]');
+await r.goto('file://' + D + 'fresh.html');
+// a copy never saved is a new version: the bar says so and offers the import first
+ok(/New copy \(v\d/.test(await r.$eval('#maintBar', e => e.textContent)) && !!(await r.$('.newver [data-e="import"]')), 'a fresh copy offers Import from last version, first');
+ok(readFileSync(D + 'm2.html', 'utf8').includes('"version":"v'), 'a saved copy records the version that wrote it');
 await r.setInputFiles('#impFile', D + 'm2.html');
-await r.waitForTimeout(300);
-ok((await r.$$eval('#main .lrow .cname', a => a.map(x => x.textContent))).includes('DTS'), 'Import links from a copy carries the links into a new build');
+await r.waitForSelector('#sdlg[open] [data-e="impReplace"]');
+const ib = await r.$eval('#sdlg', d => d.textContent);
+ok(/Written by\s*Sustainment Dashboard v\d/.test(ib) && /Holds\s*\d+ links, \d+ sections/.test(ib), 'the import box says which version wrote the file and what it holds');
+await r.click('[data-e="impReplace"]');
+ok((await r.$$eval('#main .lrow .cname', a => a.map(x => x.textContent))).includes('DTS'), 'Replace with these carries the links into a new build');
+ok(!/New copy/.test(await r.$eval('#maintBar', e => e.textContent)) && /Unsaved/.test(await r.$eval('#maintBar', e => e.textContent)), 'after importing, the bar says to save, not that the copy is new');
+// merge: a link typed into the new copy first is kept, and the old file's links are added beside it
+const ctx3b = await b.newContext(); const r2 = await ctx3b.newPage(); r2.on('pageerror', e => errs.push('merge: ' + e.message)); r2.on('dialog', d => d.accept());
+await r2.goto('file://' + D + 'fresh.html'); await r2.click('[data-e="toggle"]');
+await r2.click('[data-e="addLink"][data-s="trackers"]'); await r2.fill('#eName', 'Typed first'); await r2.fill('#eUrl', 'https://first.example.mil/'); await r2.click('[data-e="saveLink"]');
+await r2.setInputFiles('#impFile', D + 'm2.html'); await r2.waitForSelector('#sdlg[open] [data-e="impMerge"]');
+await r2.click('[data-e="impMerge"]');
+const mn = await r2.$$eval('#main .lrow .cname', a => a.map(x => x.textContent));
+ok(mn.includes('Typed first') && mn.includes('DTS') && mn.filter(x => x === 'ATR/BTR Tracker').length === 1, 'Add the ones I don’t have keeps what was typed, adds the rest, and repeats nothing');
+ok((await r2.$$eval('#main .scard h3', a => a.map(x => x.textContent))).filter(x => x === 'Travel').length === 1, 'a section the old file had is added once');
 // training: dated sessions split the Training tab into the schedule, upcoming and past
 {
   const ctx4 = await b.newContext({ acceptDownloads: true }); const t = await ctx4.newPage(); t.on('pageerror', e => errs.push('training: ' + e.message)); t.on('dialog', d => d.accept());

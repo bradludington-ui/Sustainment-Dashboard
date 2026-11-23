@@ -3,6 +3,8 @@
 // holds data; the page reads DASH and CATALOG and remembers, in this browser only, which tab was chosen, which links are
 // pinned and what was opened lately.
 
+// this program's version: shown in the footer, and written into every file it saves, so a file says which version wrote it
+const VERSION = 'v1.7';
 const STATUS = {
   live:    { label: 'Live',           cls: 'st-live',    order: 0 },
   dev:     { label: 'In development', cls: 'st-dev',     order: 1 },
@@ -95,6 +97,7 @@ function normCatalog(raw) {
   if (str(m.contact)) { if (emailOk(str(m.contact))) out.meta.contact = str(m.contact); else fixed.push('the contact address “' + str(m.contact).slice(0, 60) + '” is not an email address and was set aside'); }
   if (str(m.office)) out.meta.office = str(m.office).slice(0, 80);
   if (str(m.updated) && !isNaN(Date.parse(str(m.updated)))) out.meta.updated = str(m.updated);
+  if (/^v\d+(\.\d+)*$/.test(str(m.version))) out.meta.version = str(m.version);
   for (const k of (raw && Array.isArray(raw.categories) ? raw.categories : [])) {
     const name = str(k && k.name); let id = str(k && k.id).toLowerCase().replace(/[^a-z0-9-]+/g, '-');
     if (!name) { fixed.push('a section with no name was left out'); continue; }
@@ -447,7 +450,7 @@ function draw() {
   const stale = location.protocol === 'file:' && (/[\\/]downloads[\\/]/i.test(path) || /\(\d+\)\.html?$/i.test(path));
   document.getElementById('staleNote').innerHTML = stale && !HAS_MAINT ? '<p class="stale" role="note"><b>This is a downloaded copy.</b> It does not change when the links are updated'
     + (up ? ' (this one is from ' + esc(up) + ')' : '') + '. Open the dashboard from Teams, or bookmark it there, to always see the current links.</p>' : '';
-  document.getElementById('main').innerHTML = mainHtml() + '<footer class="foot">This page holds no data: it is a list of links. Pins and recently opened are kept in your browser only.' + HOOK('footNote') + '</footer>';
+  document.getElementById('main').innerHTML = mainHtml() + '<footer class="foot">This page holds no data: it is a list of links. Pins and recently opened are kept in your browser only.' + HOOK('footNote') + ' <span class="ver">Sustainment Dashboard ' + VERSION + '</span></footer>';
 }
 
 function toast(msg) {

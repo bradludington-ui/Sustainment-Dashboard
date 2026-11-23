@@ -1,6 +1,6 @@
 // THE STARTING CATALOG. Since the editor (Edit catalog, in the maintainer copy), the catalog people see lives INSIDE the
 // saved dashboard file, and Brad adds, changes and deletes links there. This file is only what a freshly built copy
-// starts with; a newer build takes Brad's links across with "Import links from a copy…". Editing it changes nothing in
+// starts with; a newer build takes Brad's links across with "Import from last version…" (the maintainer bar offers it on a fresh copy). Editing it changes nothing in
 // a dashboard already saved.
 //
 //   name      what the row says

@@ -64,7 +64,7 @@ const ED = { on: false, fileSig: '', teamSig: '', dirty: false, undo: null };
 // every part of a catalog that is written to a file. sigOf leaves out meta.updated, the stamp Save writes: saving the
 // team copy must not make the maintainer copy read as changed, nor the other way round.
 const catOut = cat => ({ meta: cat.meta || {}, categories: cat.categories, items: cat.items, notices: cat.notices || [], glossary: cat.glossary || [] });
-const sigOf = cat => { const o = catOut(cat), m = { ...o.meta }; delete m.updated; const j = JSON.stringify({ ...o, meta: m }); let h = 5381; for (let i = 0; i < j.length; i++) h = ((h * 33) ^ j.charCodeAt(i)) >>> 0; return j.length + '.' + h.toString(36); };
+const sigOf = cat => { const o = catOut(cat), m = { ...o.meta }; delete m.updated; delete m.version; const j = JSON.stringify({ ...o, meta: m }); let h = 5381; for (let i = 0; i < j.length; i++) h = ((h * 33) ^ j.charCodeAt(i)) >>> 0; return j.length + '.' + h.toString(36); };
 const plainCat = () => JSON.parse(JSON.stringify(catOut(CATALOG)));
 
 function edKeep() {   // after every edit: keep the draft, mark unsaved, redraw
@@ -126,14 +126,14 @@ async function saveFile({ team }) {
   // the file says when its links were saved ("Links updated 22 Nov 2026" on the page); the stamp lands only if the write does
   const stamp = new Date().toISOString();
   let html;
-  try { html = htmlWith({ ...CATALOG, meta: { ...CATALOG.meta, updated: stamp } }, team); } catch (e) { alert('Not saved: ' + e.message); return false; }
+  try { html = htmlWith({ ...CATALOG, meta: { ...CATALOG.meta, updated: stamp, version: VERSION } }, team); } catch (e) { alert('Not saved: ' + e.message); return false; }
   try {
     let h = await IDB.get(key), fresh = false;
     if (h && h.queryPermission && (await h.queryPermission({ mode: 'readwrite' })) !== 'granted') {
       if ((await h.requestPermission({ mode: 'readwrite' })) !== 'granted') h = null;
     }
     if (!h) { h = await pickFile(name, key); fresh = true; }
-    if (!h) { download(name, html); CATALOG.meta.updated = stamp; toast(name + ' downloaded: put it where the old one was'); return 'downloaded'; }
+    if (!h) { download(name, html); CATALOG.meta.updated = stamp; CATALOG.meta.version = VERSION; toast(name + ' downloaded: put it where the old one was'); return 'downloaded'; }
     const kind = await fileKind(h);
     // the Save window empties a file the moment it is chosen, so a fresh pick reads as empty: the name is the guard there
     if (fresh && !/\.html?$/i.test(h.name || '')) { alert('Not saved: “' + h.name + '” is not an .html file.'); return false; }
@@ -145,12 +145,12 @@ async function saveFile({ team }) {
     }
     await writeTo(h, html);
     await IDB.set(key, h);
-    CATALOG.meta.updated = stamp;
+    CATALOG.meta.updated = stamp; CATALOG.meta.version = VERSION;
     toast('Saved to ' + h.name);
     return 'written';
   } catch (e) {
     if (e && e.name === 'AbortError') return false;   // the person closed the Save window
-    download(name, html); CATALOG.meta.updated = stamp;
+    download(name, html); CATALOG.meta.updated = stamp; CATALOG.meta.version = VERSION;
     toast('Could not write the file (' + (e && e.message || e) + '); downloaded instead');
     return 'downloaded';
   }
@@ -315,19 +315,66 @@ function edDiscard() {
 
 // ---- links from another copy: a newer build starts with the starting catalog, and this carries Brad's across
 function importPick() { document.getElementById('impFile').click(); }
+let IMP = null;   // the catalog read from the file chosen, held while the import box is open
 async function importFile(f) {
   if (!f) return;
   if (f.size > 20e6) { alert('Not imported: “' + f.name + '” is too large to be a dashboard.'); return; }
   const t = await f.text();
   const m = /<script id="catData" type="application\/json">([\s\S]*?)<\/script>/.exec(t);
-  if (!m) { alert('Not imported: “' + f.name + '” is not a Sustainment Dashboard file with a catalog in it.'); return; }
+  if (!m) { alert('Not imported: “' + f.name + '” is not a Sustainment Dashboard file with links in it.'); return; }
   let cat;
-  try { cat = normCatalog(JSON.parse(m[1])); } catch (e) { alert('Not imported: the catalog in “' + f.name + '” could not be read (' + e.message + ').'); return; }
-  const sum = cat.items.length + ' links in ' + cat.categories.length + ' sections';
-  if (!confirm('Replace the links on this page (' + CATALOG.items.length + ' links in ' + CATALOG.categories.length + ' sections) with the ' + sum + ' in “' + f.name + '”?'
-    + (cat.fixed.length ? '\n\nRead with these changes:\n• ' + cat.fixed.slice(0, 12).join('\n• ') : '') + '\n\nNothing is written to a file until you Save.')) return;
-  CATALOG = cat; ED.undo = null; edKeep();
-  toast('Imported ' + sum + ' (not saved yet)');
+  try { cat = normCatalog(JSON.parse(m[1])); } catch (e) { alert('Not imported: the links in “' + f.name + '” could not be read (' + e.message + ').'); return; }
+  IMP = { cat, name: f.name, team: !t.includes(FA) };
+  const M = cat.meta, saved = M.updated ? new Date(M.updated) : null;
+  const n = (x, w) => x + ' ' + w + (x === 1 ? '' : 's');
+  const sum = c => n(c.items.length, 'link') + ', ' + n(c.categories.length, 'section') + ', ' + n(c.glossary.length, 'glossary term') + ', ' + n(c.notices.length, 'announcement');
+  const merge = importMerge(cat, true);
+  dlg('<header><h2 id="sdlgT">Import from your last version</h2><button type="button" class="x" data-e="close" aria-label="Close">×</button></header><div class="eform">'
+    + '<table class="imptab"><tr><th>File</th><td>' + esc(f.name) + (IMP.team ? ' <span class="eh">(a team copy)</span>' : '') + '</td></tr>'
+    + '<tr><th>Written by</th><td>' + (M.version ? 'Sustainment Dashboard ' + esc(M.version) : 'a version before v1.7') + '</td></tr>'
+    + '<tr><th>Saved</th><td>' + (saved ? esc(saved.toLocaleString()) : 'never saved') + '</td></tr>'
+    + '<tr><th>Holds</th><td>' + esc(sum(cat)) + (M.contact ? ', contact ' + esc(M.contact) : '') + '</td></tr>'
+    + '<tr><th>This page holds</th><td>' + esc(sum(CATALOG)) + '</td></tr></table>'
+    + (cat.fixed.length ? '<p class="eh">Read with ' + cat.fixed.length + ' change(s): ' + cat.fixed.slice(0, 6).map(esc).join('; ') + '</p>' : '')
+    + '<p class="eh"><b>Replace with these</b> makes this page exactly what that file held (use it when this is a fresh download). '
+    + '<b>Add the ones I don’t have</b> keeps everything on this page and adds ' + esc(merge) + '. Nothing is written to a file until you Save.</p></div>'
+    + '<footer><span class="sp"></span><button type="button" class="btn" data-e="close">Cancel</button>'
+    + '<button type="button" class="btn" data-e="impMerge">Add the ones I don’t have</button>'
+    + '<button type="button" class="btn pri" data-e="impReplace">Replace with these</button></footer>', '[data-e="impReplace"]');
+}
+// adds what this page lacks (matched by name, ignoring case); with dry, only says what it would add
+function importMerge(cat, dry) {
+  const has = (list, k, v) => list.some(x => String(x[k]).toLowerCase() === String(v).toLowerCase());
+  const secs = cat.categories.filter(k => !has(CATALOG.categories, 'name', k.name));
+  const links = cat.items.filter(c => !has(CATALOG.items, 'name', c.name));
+  const terms = cat.glossary.filter(g => !has(CATALOG.glossary || [], 'term', g.term));
+  const news = cat.notices.filter(x => !has(CATALOG.notices || [], 'text', x.text));
+  const n = (x, w) => x + ' ' + w + (x === 1 ? '' : 's');
+  if (dry) return [n(links.length, 'link'), n(secs.length, 'section'), n(terms.length, 'term'), n(news.length, 'announcement')].join(', ');
+  const ids = new Set(cats().map(k => k.id));
+  for (const k of secs) { const nk = { ...k }; if (ids.has(nk.id)) nk.id = slugId(nk.name, ids); ids.add(nk.id); CATALOG.categories.push(nk); }
+  // a link keeps its section by the section's NAME, which is what both copies agree on
+  const secName = id => (cat.categories.find(k => k.id === id) || {}).name;
+  const taken = new Set(CATALOG.items.map(x => ckey(x).slice(2)));
+  for (const c of links) {
+    const it = { ...c }, sn = secName(c.category), here = sn && CATALOG.categories.find(k => k.name.toLowerCase() === sn.toLowerCase());
+    it.category = here ? here.id : c.category;
+    if (taken.has(ckey(it).slice(2))) it.id = slugId(it.name, taken);
+    taken.add(ckey(it).slice(2)); CATALOG.items.push(it);
+  }
+  CATALOG.glossary = (CATALOG.glossary || []).concat(terms);
+  CATALOG.notices = (CATALOG.notices || []).concat(news);
+  if (!CATALOG.meta.contact && cat.meta.contact) CATALOG.meta.contact = cat.meta.contact;
+  if (!CATALOG.meta.office && cat.meta.office) CATALOG.meta.office = cat.meta.office;
+  return links.length + secs.length + terms.length + news.length;
+}
+function importReplace() {
+  const c = IMP.cat, keepVer = CATALOG.meta.version;
+  CATALOG = { meta: { ...c.meta }, categories: c.categories, items: c.items, notices: c.notices, glossary: c.glossary, fixed: c.fixed };
+  // what this page's file says it is stays as it is until it is saved: the version and stamp belong to the file written
+  delete CATALOG.meta.updated; delete CATALOG.meta.version; if (keepVer) CATALOG.meta.version = keepVer;
+  dlgClose(); ED.undo = null; edKeep();
+  toast('Imported ' + c.items.length + ' links from ' + IMP.name + ' (not saved yet: press Save)');
 }
 
 // ---- the hooks app.js calls
@@ -355,6 +402,8 @@ const MAINT_HOOKS = {
         case 'save': edSave(); break;
         case 'saveTeam': edSaveTeam(); break;
         case 'import': importPick(); break;
+        case 'impReplace': importReplace(); break;
+        case 'impMerge': { const k = importMerge(IMP.cat, false); dlgClose(); ED.undo = null; edKeep(); toast('Added ' + k + ' from ' + IMP.name + ' (not saved yet: press Save)'); break; }
         case 'discard': edDiscard(); break;
         case 'undo': edUndo(); break;
         case 'addLink': linkForm('', sId); break;
@@ -396,15 +445,19 @@ const MAINT_HOOKS = {
   drawBar() {
     const bar = document.getElementById('maintBar'); if (!bar) return;
     const teamOld = ED.teamSig !== sigOf(CATALOG);
-    bar.innerHTML = '<span class="mt">Maintainer copy: keep this file to yourself.' + (CATALOG.meta.contact ? '' : ' <button type="button" class="lnk" data-e="office">Add your contact email</button> so people can report broken links.') + '</span>'
+    const fresh = !CATALOG.meta.updated && !ED.dirty;   // a copy nobody has saved yet: a new version, straight from GitHub
+    bar.innerHTML = (fresh ? '<span class="newver"><b>New copy (' + esc(VERSION) + ').</b> Bring your links across from your last version first: '
+        + '<button type="button" class="mb pri" data-e="import">Import from last version…</button></span><span class="brk"></span>' : '')
+      + '<span class="mt">Maintainer copy: keep this file to yourself.' + (CATALOG.meta.contact || fresh ? '' : ' <button type="button" class="lnk" data-e="office">Add your contact email</button> so people can report broken links.') + '</span>'
       + '<button type="button" class="mb" data-e="toggle" aria-pressed="' + ED.on + '">' + (ED.on ? 'Done editing' : 'Edit catalog') + '</button>'
-      + (ED.dirty ? '<span class="pill warn" role="status">Unsaved changes</span>' : '<span class="pill" role="status">Saved</span>')
+      + (ED.dirty ? '<span class="pill warn" role="status">Unsaved changes</span>' : fresh ? '' : '<span class="pill" role="status">Saved</span>')
       + (ED.undo ? '<button type="button" class="mb" data-e="undo">Undo delete</button>' : '')
       + '<span class="sp"></span>'
       + (ED.on ? '<button type="button" class="mb" data-e="paste">Paste from Excel…</button><button type="button" class="mb" data-e="export">Export to Excel</button>'
         + '<button type="button" class="mb" data-e="checkList">Needs checking' + (needsCheck().length ? ' <b class="cnt">' + needsCheck().length + '</b>' : '') + '</button>'
         + '<button type="button" class="mb" data-e="office">Office settings…</button>'
-        + '<button type="button" class="mb" data-e="import">Import links from a copy…</button>' + (ED.dirty ? '<button type="button" class="mb" data-e="discard">Discard changes</button>' : '') : '')
+        + (ED.dirty ? '<button type="button" class="mb" data-e="discard">Discard changes</button>' : '') : '')
+      + (fresh ? '' : '<button type="button" class="mb" data-e="import">Import from last version…</button>')
       + '<button type="button" class="mb pri" data-e="save"' + (ED.dirty ? '' : ' aria-disabled="true"') + '>Save</button>'
       + '<button type="button" class="mb" data-e="saveTeam" title="Write sustainment-dashboard.html, the copy for Teams">Save team copy…' + (teamOld ? ' <span class="dot-warn" aria-label="(out of date)">●</span>' : '') + '</button>';
   },

@@ -66,8 +66,10 @@ In your **maintainer copy** (below), press **Edit catalog**:
   box has **I checked this link works today**.
 - **Office settings…**: the contact email reports and suggestions go to (a shared office mailbox outlasts any one person).
 - **+ Announcement** on What's new (with a "show until" date), and **+ Add a term** on the Glossary tab.
-- **Import links from a copy…** takes the links from another saved copy. Use it when you download a newer version
-  of the dashboard, so your links come with you.
+- **Import from last version…** brings your links across from an older copy. A fresh download (never saved) says
+  **New copy** in the bar and offers it first. It shows which version wrote the old file, when it was saved and what it
+  holds, then **Replace with these** (a fresh download) or **Add the ones I don’t have** (keeps what you already typed
+  into the new copy, adds the rest, repeats nothing). Every saved file records the version that wrote it.
 
 The links live inside the saved files, not in this repository: `src/catalog.js` is only what a fresh build starts with.
 

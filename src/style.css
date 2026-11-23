@@ -302,3 +302,10 @@ a.tpill[href^="#"] svg{color:#a36a00}
 #pIn{font:12px/1.4 Consolas,"Liberation Mono",monospace;white-space:pre;overflow-wrap:normal;overflow:auto}
 .perr{margin:4px 0 0;padding-left:18px;color:#8c1d3f;font-size:12.5px}
 @media (max-width:760px){.stale{margin:0 10px 10px}.upd{display:block;width:max-content;margin:6px auto 0}.tpill span,.tr .tpill{font-size:12px}}
+/* importing the last version */
+.newver{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;padding:4px 10px;border-radius:8px;background:#fff;border:1px solid var(--ochre)}
+.maint .brk{flex-basis:100%;height:0}
+.imptab{border-collapse:collapse;width:100%;font-size:13.5px}
+.imptab th{text-align:left;padding:5px 12px 5px 0;color:var(--smut);font-weight:700;white-space:nowrap;vertical-align:top;width:9em}
+.imptab td{padding:5px 0;border-bottom:1px solid #e3e8ee}
+.foot .ver{float:right;color:var(--smut)}
