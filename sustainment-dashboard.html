@@ -942,14 +942,14 @@ async function importFile(f) {
   const n = (x, w) => x + ' ' + w + (x === 1 ? '' : 's');
   const sum = c => n(c.items.length, 'link') + ', ' + n(c.categories.length, 'section') + ', ' + n(c.glossary.length, 'glossary term') + ', ' + n(c.notices.length, 'announcement');
   const merge = importMerge(cat, true);
-  dlg('<header><h2 id="sdlgT">Import from your last version</h2><button type="button" class="x" data-e="close" aria-label="Close">×</button></header><div class="eform">'
+  dlg('<header><h2 id="sdlgT">' + (IS_MAINT() ? 'Import from your last version' : 'Import from another copy') + '</h2><button type="button" class="x" data-e="close" aria-label="Close">×</button></header><div class="eform">'
     + '<table class="imptab"><tr><th>File</th><td>' + esc(f.name) + (IMP.team ? ' <span class="eh">(a team copy)</span>' : '') + '</td></tr>'
     + '<tr><th>Written by</th><td>' + (M.version ? 'Sustainment Dashboard ' + esc(M.version) : 'a version before v1.7') + '</td></tr>'
     + '<tr><th>Saved</th><td>' + (saved ? esc(saved.toLocaleString()) : 'never saved') + '</td></tr>'
     + '<tr><th>Holds</th><td>' + esc(sum(cat)) + (M.contact ? ', contact ' + esc(M.contact) : '') + '</td></tr>'
     + '<tr><th>This page holds</th><td>' + esc(sum(CATALOG)) + '</td></tr></table>'
     + (cat.fixed.length ? '<p class="eh">Read with ' + cat.fixed.length + ' change(s): ' + cat.fixed.slice(0, 6).map(esc).join('; ') + '</p>' : '')
-    + '<p class="eh"><b>Replace with these</b> makes this page exactly what that file held (use it when this is a fresh download). '
+    + '<p class="eh"><b>Replace with these</b> makes this page exactly what that file held (use it when this is a fresh download); links it does not have go to Recently deleted. '
     + '<b>Add the ones I don’t have</b> keeps everything on this page and adds ' + esc(merge) + '. Nothing is written to a file until you Save.</p></div>'
     + '<footer><span class="sp"></span><button type="button" class="btn" data-e="close">Cancel</button>'
     + '<button type="button" class="btn" data-e="impMerge">Add the ones I don’t have</button>'
@@ -987,7 +987,17 @@ function importMerge(cat, dry) {
 }
 function importReplace() {
   const c = IMP.cat, keepVer = CATALOG.meta.version;
-  CATALOG = { meta: { ...c.meta }, categories: c.categories, items: c.items, notices: c.notices, glossary: c.glossary, tools: c.tools, fixed: c.fixed };
+  // anything this page has that the imported file does not goes to Recently deleted, so a Replace from the wrong (or an
+  // old) file is never a loss; both files' change logs and deleted lists are kept, and the replace itself is logged
+  const by = who() || 'someone', t = new Date().toISOString(), names = new Set(c.items.map(x => x.name.toLowerCase()));
+  const gone = CATALOG.items.filter(x => !names.has(x.name.toLowerCase()))
+    .map(rec => ({ id: 'link:' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), t, who: by, kind: 'link', rec }));
+  const seen = new Set(), log = [];
+  for (const e of (CATALOG.log || []).concat(c.log || [])) { const k = e.t + '|' + e.who + '|' + e.what; if (!seen.has(k)) { seen.add(k); log.push(e); } }
+  const ids = new Set(), trash = (CATALOG.trash || []).concat(c.trash || [], gone).filter(x => !ids.has(x.id) && ids.add(x.id));
+  CATALOG = { meta: { ...c.meta }, categories: c.categories, items: c.items, notices: c.notices, glossary: c.glossary, tools: c.tools, fixed: c.fixed,
+    trash, log: log.sort((a, x) => a.t.localeCompare(x.t)).slice(-LOG_MAX) };
+  if (gone.length) setTimeout(() => toast(gone.length + ' link(s) the imported file did not have are in Recently deleted'), 2300);
   // what this page's file says it is stays as it is until it is saved: the version and stamp belong to the file written
   delete CATALOG.meta.updated; delete CATALOG.meta.version; if (keepVer) CATALOG.meta.version = keepVer;
   dlgClose(); ED.undo = null; edKeep();
@@ -1087,7 +1097,8 @@ const MAINT_HOOKS = {
     const tools = '<button type="button" class="mb" data-e="paste">Paste from Excel…</button><button type="button" class="mb" data-e="export">Export to Excel</button>'
       + '<button type="button" class="mb" data-e="checkList">Needs checking' + (needsCheck().length ? ' <b class="cnt">' + needsCheck().length + '</b>' : '') + '</button>'
       + '<button type="button" class="mb" data-e="trash">Recently deleted' + ((CATALOG.trash || []).length ? ' <b class="cnt">' + CATALOG.trash.length + '</b>' : '') + '</button>'
-      + '<button type="button" class="mb" data-e="log">Change log</button>';
+      + '<button type="button" class="mb" data-e="log">Change log</button>'
+      + (M ? '' : '<button type="button" class="mb" data-e="import">Import from another copy…</button>');   // the maintainer's is in its own bar
     const status = (ED.dirty ? '<span class="pill warn" role="status">Unsaved changes</span>' : '') + (ED.undo ? '<button type="button" class="mb" data-e="undo">Undo delete</button>' : '');
     if (!M) {
       // everyone's copy: a slim bar that opens editing; while editing (or with unsaved changes), the tools and Save
@@ -1342,7 +1353,7 @@ function delTerm(term) {
 // pinned and what was opened lately.
 
 // this program's version: shown in the footer, and written into every file it saves, so a file says which version wrote it
-const VERSION = 'v1.9';
+const VERSION = 'v1.10';
 const STATUS = {
   live:    { label: 'Live',           cls: 'st-live',    order: 0 },
   dev:     { label: 'In development', cls: 'st-dev',     order: 1 },

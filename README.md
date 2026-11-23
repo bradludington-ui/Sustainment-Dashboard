@@ -75,8 +75,12 @@ the change log. Then **+ Link** on a section, the pencil and bin on a link, **+ 
 - **Unsaved edits are never lost**: they are kept in the browser, and if the file has moved on since (someone else
   saved), opening it lays them over the newer copy.
 
+- **Import from another copy…** (while editing): brings links in from any saved dashboard file. **Add the ones I don’t
+  have** adds what this copy lacks; **Replace with these** makes this copy what the file held, and puts every link it
+  removes into Recently deleted, keeping both change logs, so importing the wrong (or an old) file loses nothing.
+
 Only **your maintainer copy** has the Settings panel (GitHub downloads), **Office settings** (the contact email),
-**Import from last version** and **Save team copy…** (which merges into the team's file the same way).
+**Save team copy…** (which merges into the team's file the same way), and Import offered first on a fresh copy.
 
 ## Your maintainer copy: the latest versions
 
