@@ -23,6 +23,16 @@ Everything the page shows comes from one file, **`src/tools.js`**. Its header ex
 3. `npm run check` makes sure the list is well formed and the page loads nothing from outside itself.
 4. Commit both files and upload the new `sustainment-dashboard.html` to Teams over the old one.
 
+**Changing a tool's link without a new build (v1.9).** In the page, **✎ Edit links** puts a pencil on each tile of the
+Tools row (on the Everything tab). Type where the tool lives: a web address (`https://…`) or a network path
+(`\\server\share\Dashboards\APEX.html`, `S:\Budget\ORBIT.html`); **Try it** opens it, and **Save** keeps it in the
+file, merged like any other link. That link wins over the one in `tools.js`; **Use the built-in link** goes back to it.
+Catalog links, announcements and glossary links take a network path too.
+
+A network path opens when the dashboard itself is opened from the network or from a computer. Edge and Chrome refuse
+to open a `file://` address from a page served over https (a dashboard opened in Teams or SharePoint) unless the
+organization allows it (the *IntranetFileLinksEnabled* policy); there, give the tool a web address.
+
 ## The catalog: files, websites and forms
 
 On the page under **Catalog**: Start here (for new people), trackers, briefings, forms, job websites, Air Force and Navy

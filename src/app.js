@@ -4,7 +4,7 @@
 // pinned and what was opened lately.
 
 // this program's version: shown in the footer, and written into every file it saves, so a file says which version wrote it
-const VERSION = 'v1.8';
+const VERSION = 'v1.9';
 const STATUS = {
   live:    { label: 'Live',           cls: 'st-live',    order: 0 },
   dev:     { label: 'In development', cls: 'st-dev',     order: 1 },
@@ -13,8 +13,24 @@ const STATUS = {
 const AREA_COLOR = { plan: 'var(--a-plan)', exec: 'var(--a-exec)', contracts: 'var(--a-contracts)' };
 
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-// a link is offered only when it is https: anything else (a typo, a javascript: address) is "not set"
-const linkOk = u => typeof u === 'string' && /^https:\/\/[^\s"'<>]+$/i.test(u.trim());
+// A LINK'S ADDRESS, as the browser opens it, or '' for one it must not (Brad, 23 Nov 2026: tools hosted on the network
+// as well as on the web). A web address (https://, http://) is used as written, a file:// address too. A network path
+// (\\server\share\folder\APEX.html) and a drive path (S:\Budget\ORBIT.html) become file:// addresses. Anything else (a
+// typo, a javascript: or data: address, a bare file name, which would mean nothing once the page is opened from Teams)
+// is "not set".
+function linkHref(u) {
+  const a = typeof u === 'string' ? u.trim() : '';
+  if (!a || /[\u0000-\u001f"'<>`]/.test(a)) return '';
+  if (/^https?:\/\/[^\s/]+\S*$/i.test(a)) return a;
+  const enc = p => p.split('/').map(x => encodeURIComponent(x).replace(/%3A/gi, ':')).join('/');
+  if (/^file:\/\/\S/i.test(a)) return a.replace(/ /g, '%20');
+  if (/^\\\\[^\\/\s]+[\\/][^\\/]/.test(a)) return 'file://' + enc(a.slice(2).replace(/\\/g, '/'));
+  if (/^[a-z]:[\\/]\S/i.test(a)) return 'file:///' + enc(a.replace(/\\/g, '/'));
+  return '';
+}
+const linkOk = u => linkHref(u) !== '';
+const isWeb = u => /^https?:\/\//i.test(String(u || '').trim());
+const LINK_HELP = 'a web address (https://…) or a network path (\\\\server\\share\\…, S:\\…)';
 
 // storage is a convenience: a private window or a blocked site refuses it, and the page works the same without it
 const store = {
@@ -122,7 +138,7 @@ function normCatalog(raw) {
     if (str(c.keywords)) it.keywords = str(c.keywords).slice(0, 300);
     const ck = str(c.checked); if (ck && dateOk(ck)) it.checked = ck;
     if (!TYPES[it.type]) { fixed.push('“' + name + '”: type “' + it.type + '” read as Web'); it.type = 'web'; }
-    if (it.url && !linkOk(it.url)) { fixed.push('“' + name + '”: its link is not https:// and was set aside (' + it.url.slice(0, 80) + ')'); it.url = ''; }
+    if (it.url && !linkOk(it.url)) { fixed.push('“' + name + '”: its link cannot be opened and was set aside (' + it.url.slice(0, 80) + ')'); it.url = ''; }
     if (!seen.has(it.category)) fixed.push('“' + name + '”: section “' + it.category + '” does not exist; listed under Other');
     out.items.push(it);
   }
@@ -134,7 +150,7 @@ function normCatalog(raw) {
     // an id for the merge: the one it has, or one made from what it says (the same on every copy)
     no.id = /^[a-z0-9]{2,40}$/i.test(str(n.id)) ? str(n.id) : 'n' + [...(text + no.date)].reduce((h, ch) => (h * 33 ^ ch.charCodeAt(0)) >>> 0, 5381).toString(36);
     if (dateOk(str(n.until))) no.until = str(n.until);
-    if (str(n.url)) { if (linkOk(str(n.url))) no.url = str(n.url); else fixed.push('an announcement’s link is not https:// and was set aside'); }
+    if (str(n.url)) { if (linkOk(str(n.url))) no.url = str(n.url); else fixed.push('an announcement’s link cannot be opened and was set aside'); }
     out.notices.push(no);
   }
   // the office glossary: a term, what it means, and optionally where to read more
@@ -145,8 +161,19 @@ function normCatalog(raw) {
     if (terms.has(term.toLowerCase())) { fixed.push('the glossary term “' + term + '” was listed twice; the second was left out'); continue; }
     terms.add(term.toLowerCase());
     const e = { term, meaning };
-    if (str(g.url)) { if (linkOk(str(g.url))) e.url = str(g.url); else fixed.push('“' + term + '”: its link is not https:// and was set aside'); }
+    if (str(g.url)) { if (linkOk(str(g.url))) e.url = str(g.url); else fixed.push('“' + term + '”: its link cannot be opened and was set aside'); }
     out.glossary.push(e);
+  }
+  // the tools' links as this office set them (Brad, 23 Nov 2026: "update the link to APEX, ORBIT, and the other hot
+  // links"): {id, url}, one per tool id, winning over the link in the tool list. An empty url says "no link here".
+  out.tools = [];
+  const tids = new Set();
+  for (const t of (raw && Array.isArray(raw.tools) ? raw.tools : [])) {
+    const id = str(t && t.id).toLowerCase();
+    if (!/^[a-z0-9-]{1,40}$/.test(id) || tids.has(id)) { if (id) fixed.push('a tool link for “' + id.slice(0, 40) + '” was listed twice or has no proper id, and was left out'); continue; }
+    const url = str(t.url);
+    if (url && !linkOk(url)) { fixed.push('the link set for the tool “' + id + '” cannot be opened and was set aside (' + url.slice(0, 80) + ')'); continue; }
+    tids.add(id); out.tools.push({ id, url });
   }
   // Recently deleted (90 days) and the change log: everyone's, carried in the file
   out.trash = (raw && Array.isArray(raw.trash) ? raw.trash : []).filter(x => x && typeof x === 'object' && ['link', 'section', 'term', 'notice'].includes(x.kind) && x.rec && typeof x.rec === 'object' && str(x.id) && !isNaN(Date.parse(str(x.t))))
@@ -200,7 +227,9 @@ const S = {
   q: '',
 };
 const areas = () => DASH.areas || [];
-const tools = () => (DASH.tools || []).slice();
+// a tool's link is the one this office set in the page (CATALOG.tools), else the one in the tool list
+const toolSet = id => (CATALOG.tools || []).find(x => x.id === id);
+const tools = () => (DASH.tools || []).map(t => { const o = toolSet(t.id); return o ? { ...t, url: o.url, urlSet: true } : { ...t }; });
 const areaOf = t => areas().find(a => a.id === t.area);
 const cats = () => CATALOG.categories || [];
 const citems = () => (CATALOG.items || []).slice();
@@ -249,6 +278,8 @@ const byStatus = (a, b) => ((STATUS[a.status] || { order: 9 }).order - (STATUS[b
 function hrefOf(c) {
   if (!linkOk(c.url)) return null;
   const T = TYPES[c.type] || TYPES.web, url = c.url.trim();
+  // a file on a network share opens as itself: Office's own form takes web addresses only
+  if (!isWeb(url)) return { href: linkHref(url), tab: true };
   return T.app ? { href: T.app + ':ofe|u|' + url, tab: false, web: url, app: T.appName } : { href: url, tab: true };
 }
 const aOpen = (c, k, cls, inner, extra) => {
@@ -265,9 +296,9 @@ function card(t) {
   const color = AREA_COLOR[t.area] || 'var(--a-other)';
   const feats = (t.features || []).slice(0, 4).map(f => '<li>' + hl(f) + '</li>').join('');
   const open = ok
-    ? '<a class="btn pri" href="' + esc(t.url.trim()) + '" target="_blank" rel="noopener noreferrer" data-open="' + esc(t.id) + '">' + UI.open + 'Open ' + esc(t.name) + '</a>'
+    ? '<a class="btn pri" href="' + esc(linkHref(t.url)) + '" target="_blank" rel="noopener noreferrer" data-open="' + esc(t.id) + '">' + UI.open + 'Open ' + esc(t.name) + '</a>'
       + '<button type="button" class="btn" data-copy="' + esc(t.id) + '">' + UI.copy + 'Copy link</button>'
-    : '<span class="btn" aria-disabled="true" role="link" title="This tool’s Teams link has not been added to the tool list yet">'
+    : '<span class="btn" aria-disabled="true" role="link" title="This tool’s link has not been set yet">'
       + (t.status === 'live' ? 'Link not set' : 'Not open yet') + '</span>';
   return '<article class="card' + (ok ? '' : ' off') + '" style="--area:' + color + '" aria-labelledby="t-' + esc(t.id) + '">'
     + '<div class="head"><span class="ico">' + iconOf(t) + '</span><div><h4 id="t-' + esc(t.id) + '">' + hl(t.name) + '</h4>'
@@ -283,7 +314,7 @@ function toolTile(t) {
   const inner = '<span class="ico sm">' + iconOf(t) + '</span><span class="tt"><b>' + hl(t.name) + ' <span class="st ' + st.cls + '">' + esc(st.label) + '</span></b>'
     + '<small>' + hl(t.full || t.tagline) + '</small></span>';
   return ok
-    ? '<a class="ttile" style="--area:' + (AREA_COLOR[t.area] || 'var(--a-other)') + '" href="' + esc(t.url.trim()) + '" target="_blank" rel="noopener noreferrer" data-open="' + esc(t.id) + '">' + inner + '</a>'
+    ? '<a class="ttile" style="--area:' + (AREA_COLOR[t.area] || 'var(--a-other)') + '" href="' + esc(linkHref(t.url)) + '" target="_blank" rel="noopener noreferrer" data-open="' + esc(t.id) + '">' + inner + '</a>'
     : '<div class="ttile off" style="--area:' + (AREA_COLOR[t.area] || 'var(--a-other)') + '" title="' + (t.status === 'live' ? 'This tool’s Teams link has not been set yet' : 'Not open yet') + '">' + inner + '</div>';
 }
 function toolsTab() {
@@ -345,7 +376,7 @@ function recentHtml() {
       return c && hrefOf(c) ? aOpen(c, id, 'rchip', esc(c.name)) : null;
     }
     const t = tools().find(x => x.id === id);
-    return t && linkOk(t.url) ? '<a class="rchip" href="' + esc(t.url.trim()) + '" target="_blank" rel="noopener noreferrer" data-open="' + esc(id) + '">' + esc(t.name) + '</a>' : null;
+    return t && linkOk(t.url) ? '<a class="rchip" href="' + esc(linkHref(t.url)) + '" target="_blank" rel="noopener noreferrer" data-open="' + esc(id) + '">' + esc(t.name) + '</a>' : null;
   }).filter(Boolean).slice(0, 6);
   return list.length ? '<div class="recent"><span class="lbl">Recently opened</span>' + list.join('') + '</div>' : '';
 }
@@ -408,7 +439,7 @@ function newsHtml() {
   const news = (CATALOG.notices || []).filter(n => (!n.until || n.until >= now) && n.date <= now).sort((a, b) => b.date.localeCompare(a.date)).slice(0, 4);
   const due = citems().filter(c => c.date && c.date >= now && c.date <= soon).sort((a, b) => a.date.localeCompare(b.date)).slice(0, 6);
   if (!news.length && !due.length && !editing()) return '';
-  const nrow = n => '<li><span class="ldate">' + esc(dateTxt(n.date)) + '</span>' + (n.url ? '<a href="' + esc(n.url) + '" target="_blank" rel="noopener noreferrer">' + esc(n.text) + '</a>' : '<span>' + esc(n.text) + '</span>') + '</li>';
+  const nrow = n => '<li><span class="ldate">' + esc(dateTxt(n.date)) + '</span>' + (n.url ? '<a href="' + esc(linkHref(n.url)) + '" target="_blank" rel="noopener noreferrer">' + esc(n.text) + '</a>' : '<span>' + esc(n.text) + '</span>') + '</li>';
   const drow = c => '<li><span class="ldate up">' + esc(c.date === now ? 'Today' : dateTxt(c.date)) + '</span>' + (hrefOf(c) ? aOpen(c, ckey(c), '', esc(c.name)) : '<span>' + esc(c.name) + '</span>')
     + '<small>' + esc((catOf(c) || {}).name || '') + '</small></li>';
   return '<div class="news"><section class="ncard"><h2>What’s new' + HOOK('newsActs') + '</h2>' + (news.length ? '<ul>' + news.map(nrow).join('') + '</ul>' : '<p class="sempty">No announcements.</p>') + '</section>'
@@ -420,7 +451,7 @@ function glossHtml(list) {
   for (const g of sorted) { const L = /[a-z]/i.test(g.term[0]) ? g.term[0].toUpperCase() : '#'; if (!groups.has(L)) groups.set(L, []); groups.get(L).push(g); }
   let h = '';
   for (const [L, gs] of groups) h += '<div class="gl"><h3>' + esc(L) + '</h3><dl>' + gs.map(g => '<div class="gt"><dt>' + hl(g.term) + HOOK('termActs', g) + '</dt><dd>' + hl(g.meaning)
-    + (g.url ? ' <a href="' + esc(g.url) + '" target="_blank" rel="noopener noreferrer">Read more<span class="vh"> about ' + esc(g.term) + '</span></a>' : '') + '</dd></div>').join('') + '</dl></div>';
+    + (g.url ? ' <a href="' + esc(linkHref(g.url)) + '" target="_blank" rel="noopener noreferrer">Read more<span class="vh"> about ' + esc(g.term) + '</span></a>' : '') + '</dd></div>').join('') + '</dl></div>';
   return h;
 }
 function glossTab() {
@@ -441,7 +472,7 @@ function mainHtml() {
   // Everything
   const T = tools().slice().sort(byStatus);
   return newsHtml() + recentHtml() + pinnedHtml()
-    + '<h2 class="sh">Tools<small><button type="button" class="lnk" data-tab="tools">all tools ›</button></small></h2><div class="trow">' + T.map(toolTile).join('') + '</div>'
+    + '<h2 class="sh">Tools<small><button type="button" class="lnk" data-tab="tools">all tools ›</button></small></h2><div class="trow">' + T.map(t => editing() ? '<div class="ttw">' + toolTile(t) + HOOK('toolActs', t) + '</div>' : toolTile(t)).join('') + '</div>'
     + '<h2 class="sh">Catalog<small>' + cats().length + ' sections · ' + citems().length + ' links</small></h2>'
     + (catalogCards(citems()) || '<div class="empty">No links yet.</div>') + (editing() ? HOOK('catalogFoot') : '');
 }
