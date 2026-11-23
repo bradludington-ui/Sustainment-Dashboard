@@ -15,7 +15,9 @@ dashboard, and more). See README.md for what it is and how it is updated.
   links still navigate. Do not add a CDN, a web font or a fetch.
 - **Two copies, and GitHub stays out of the team's.** `build.mjs` writes `sustainment-dashboard.html` (the team copy,
   for Teams) and `maintainer/sustainment-dashboard-maintainer.html` (Brad's, with the Settings panel of download links).
-  Only the maintainer copy carries `src/sources.js` and `src/maint.js`. Brad, 22 Nov 2026: he does not want others to
+  Only the maintainer copy carries `src/sources.js` and `src/maint.js`; `edit.js` is in both, so it may never name
+  GitHub or the Settings panel's function, and its fence markers are built from pieces that do not look like a fence
+  (`npm run check` refuses `MAINT>` / `MAINT@` in the team copy). Brad, 22 Nov 2026: he does not want others to
   readily be able to download the latest versions. So the links are LEFT OUT of the team copy, never hidden in it
   (View Source would show them). `npm run check` fails on any mention of GitHub in the team copy, comments included:
   never write a GitHub address, or the panel's code, into tools.js, app.js, style.css or shell.html.
@@ -24,16 +26,25 @@ dashboard, and more). See README.md for what it is and how it is updated.
   listed in both.
 - **The catalog lives in the saved file, ORBIT's way** (Brad, 22 Nov 2026: "I need to be able to add, modify and
   delete"). It is a JSON block, `<script id="catData">`, read by `readCatalog()` → `normCatalog()` (the one reading of a
-  catalog, also used by Import). Brad edits it in the maintainer copy (Edit catalog, `src/maint.js`); Save writes the
-  maintainer file, Save team copy writes the team file. `src/catalog.js` is only the STARTING catalog of a fresh build:
+  catalog, also used by Import and the merge).
+- **Anyone edits (Brad, 23 Nov 2026: "I want the ability for anyone using to be able to update the links").** The
+  editor is `src/edit.js`, in EVERY copy; only the Settings panel (`maint.js`, `sources.js`) is fenced. Office settings,
+  Import from last version and Save team copy are the maintainer's (`IS_MAINT()`). The team opens the file from Teams
+  and saves it back (Brad: "It does not synch"), so the last save must never wipe out the others: **Save merges**
+  (`merge3`: base = the catalog this page started from, `ED.base`; mine; theirs = the file reread, or the newest copy
+  the person chooses). Only-mine changes are mine, only-theirs are kept, both-different keeps mine and says so. Every
+  link and announcement has an id (`normCatalog` makes one) because the merge keys by it. Each save writes the change
+  `log` (who, from `sdash.who`) and deletes go to `trash` (90 days, anyone restores). A draft carries its `baseCat`, so
+  unsaved edits from an older copy are merged over a newer file on opening. `npm test` drives two people saving at
+  once and checks nothing of either is lost. `src/catalog.js` is only the STARTING catalog of a fresh build:
   never assume it matches what Brad's files hold. A new build carries his links across with Import from last version (`importFile` → Replace or `importMerge`). `VERSION` in app.js is written into every saved file as `meta.version`: raise it on every functional change.
 - **The team copy is the maintainer copy with the fences cut out.** `sources.js` and `maint.js` are built inside
-  `/*@MAINT>*/ … /*<MAINT@*/`; `teamOf()` in build.mjs and `htmlWith(…, true)` in maint.js cut them the same way, so the
+  `/*@MAINT>*/ … /*<MAINT@*/`; `teamOf()` in build.mjs and `htmlWith(…, true)` in edit.js cut them the same way, so the
   page's own Save team copy and the build cannot drift apart. A fence marker never appears literally in a source file
   (build it from pieces): a cut that met its own marker would eat the code doing the cutting. Every `<` in the catalog
   block is written `\u003c`, so a link or note holding `</script>` cannot end the block.
-- **The editor plugs in through `HOOK()`** in app.js (`MAINT_HOOKS` in maint.js). The team copy has no `MAINT_HOOKS`,
-  so every hook draws nothing there. Put maintainer-only behaviour behind a hook, never in app.js.
+- **The editor plugs in through `HOOK()`** in app.js (`MAINT_HOOKS`, defined in edit.js). Maintainer-only behaviour
+  checks `IS_MAINT()` inside edit.js; app.js stays free of editing code.
 - **Office links open in the desktop app** through Office's own form (`ms-excel:ofe|u|<https address>`, and
   `ms-powerpoint`, `ms-word`), with a Browser button beside it. Brad asked for Office files never to open in preview.
 - **No data, ever.** The hub links to tools; it never holds budget or contract figures. Tools that hold data live in
@@ -64,7 +75,10 @@ dashboard, and more). See README.md for what it is and how it is updated.
   card still while hovering, and was shown failing on that version.
 - **`npm run a11y`** (axe-core, dev only) must report no findings. A link not set is told apart by a dashed edge, never
   by fading: fading took the Live badge under 4.5:1.
+- **A browser test never touches storage from an init script**: in Chromium a `file://` page that touches storage while
+  it is being created can get a storage area of its own, and a reload lands in another (drafts "vanished" until the
+  tests seeded the name from the loaded page, `seedWho`). ORBIT's pmo-save check met the same thing.
 - **`npm test`** drives the page in Chromium end to end (`tools/editor-test.mjs`); run it with `npm run check` before a
-  commit that touches app.js or maint.js.
+  commit that touches app.js, edit.js or maint.js.
 - Check appearance with `npm run shoot` at 1440, 1366 and a phone width (420) before calling a change done
   (`--catalog --links` fills it with stand-in links and pins).

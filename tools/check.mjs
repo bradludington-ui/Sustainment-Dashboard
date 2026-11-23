@@ -104,7 +104,7 @@ for (const m of built.matchAll(/<script>([\s\S]*?)<\/script>/g)) {
 }
 
 // 5
-if (built.includes(FENCE_A) || built.includes(FENCE_B)) fail('a maintainer fence survived into the team copy');
+if (built.includes(FENCE_A) || built.includes(FENCE_B) || /MAINT[>@]/.test(built)) fail('a maintainer fence, or a piece that looks like one, is in the team copy');
 const fa = builtM.split(FENCE_A).length - 1, fb = builtM.split(FENCE_B).length - 1;
 if (fa !== fb || fa < 2) fail('the maintainer copy has ' + fa + ' fence openings and ' + fb + ' closings (expected the same number, at least 2)');
 for (const [nm, html] of [['team copy', built], ['maintainer copy', builtM]]) {

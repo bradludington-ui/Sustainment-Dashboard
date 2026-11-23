@@ -43,7 +43,7 @@ async function scan(page, where) {
   }
 }
 for (const [w, h] of [[1366, 768], [420, 900]]) {
-  const p = await b.newPage({ viewport: { width: w, height: h } });
+  const p = await b.newPage({ viewport: { width: w, height: h } }); p.on('dialog', d => d.accept());
   await p.goto(pathToFileURL(team).href);
   await p.evaluate(() => { localStorage.clear(); localStorage.setItem('sdash.pins', JSON.stringify(['c:training-schedule', 'c:mypay'])); localStorage.setItem('sdash.recent', JSON.stringify(['c:dd-448'])); });
   await p.reload();
@@ -52,6 +52,12 @@ for (const [w, h] of [[1366, 768], [420, 900]]) {
   await p.click('.tabs [data-tab="all"]'); await p.fill('#q', 'pay'); await p.dispatchEvent('#q', 'input'); await scan(p, w + ' search');
   await p.fill('#q', ''); await p.dispatchEvent('#q', 'input');
   await p.click('#helpBtn'); await p.click('#hdlg summary'); await scan(p, w + ' Help'); await p.keyboard.press('Escape');
+  // everyone edits now: the team copy while editing, a link box, and the Save box
+  await p.evaluate(() => localStorage.setItem('sdash.who', '"A11y Check"'));
+  await p.click('[data-e="toggle"]'); await scan(p, w + ' team editing');
+  await p.click('[data-e="editLink"] >> nth=0'); await scan(p, w + ' team link box'); await p.fill('#eNote', 'changed'); await p.click('[data-e="saveLink"]');
+  await p.click('[data-e="save"]'); await scan(p, w + ' team save box'); await p.keyboard.press('Escape');
+  await p.click('[data-e="toggle"]'); await scan(p, w + ' team, unsaved');
   await p.close();
 }
 {

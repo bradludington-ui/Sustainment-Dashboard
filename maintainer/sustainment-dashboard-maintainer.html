@@ -318,6 +318,19 @@ a.tpill[href^="#"] svg{color:#a36a00}
 .imptab th{text-align:left;padding:5px 12px 5px 0;color:var(--smut);font-weight:700;white-space:nowrap;vertical-align:top;width:9em}
 .imptab td{padding:5px 0;border-bottom:1px solid #e3e8ee}
 .foot .ver{float:right;color:var(--smut)}
+/* everyone's edit bar: slim until editing */
+.maint.team{background:var(--sbg2);border-bottom:1px solid var(--sline);color:var(--sink);font-weight:600}
+.maint.team .mb{border-color:var(--sedge);color:var(--sink)}
+.maint.team .mb:hover{background:var(--ssel)}
+.maint.team .mb[aria-pressed=true]{background:var(--acc);color:var(--onAcc);border-color:var(--acc)}
+.maint.team.on{background:var(--ochreBg);border-color:var(--ochre)}
+.maint.team .mt{font-weight:400;color:var(--smut)}
+.maint.team .lnk{color:var(--slink)}
+ol.steps{margin:4px 0;padding-left:20px}
+ol.steps li{margin:0 0 8px}
+.maint.team .mb.pri{background:var(--acc);border-color:var(--acc);color:var(--onAcc)}
+.maint.team .mb.pri:hover{background:var(--accHover);color:#fff}
+.maint.team .mb.pri[aria-disabled=true]{background:var(--spanel2);border-color:var(--sline);color:var(--smut)}
 </style>
 </head>
 <body>
@@ -431,13 +444,10 @@ const SOURCES = {
 /*@MAINT>*/
 // ===== maint.js =====
 'use strict';
-// THE MAINTAINER'S TOOLS: the Settings panel (each tool's latest version on GitHub) and the catalog editor (add, change
-// and delete links and sections, Save, Save team copy, Import links). Built into the maintainer copy only, inside a
-// fence; the team copy is the maintainer copy with the fences cut out (build.mjs teamOf, and saveTeam below, the same
-// way), so the team copy has no gear, no editor and no GitHub address.
-//
-// Everything here runs after app.js has loaded (from MAINT_HOOKS.init, or a click), so it may use app.js's helpers;
-// at the top level it may only declare.
+// THE SETTINGS PANEL: each tool's latest version on GitHub. Built into the maintainer copy only, inside a fence; the
+// team copy is the maintainer copy with the fences cut out (build.mjs teamOf, and htmlWith in edit.js, the same way), so
+// the team copy has no gear and no GitHub address. The editor is in edit.js, which both copies carry (Brad, 23 Nov
+// 2026: "I want the ability for anyone using to be able to update the links").
 const GH = 'https://github.com/';
 const ghPart = s => String(s || '').split('/').map(encodeURIComponent).join('/');
 const ghOk = src => src && /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(src.repo || '') && src.path && !/\.\./.test(src.path) && /^[A-Za-z0-9_./-]+$/.test(src.branch || 'main');
@@ -479,29 +489,41 @@ function openSettings() {
   if (typeof d.showModal === 'function') d.showModal(); else d.setAttribute('open', '');
   d.querySelector('a,button')?.focus();
 }
+/*<MAINT@*/
 
-
+// ===== edit.js =====
+'use strict';
 // ===================================================================================================================
-// THE CATALOG EDITOR
+// THE EDITOR, IN EVERY COPY (Brad, 23 Nov 2026: "I want the ability for anyone using to be able to update the links")
 //
 // The record is the file. CATALOG (app.js) is read from the file's data block; an edit changes CATALOG and is kept in
-// this browser at once as a draft (sdash.draft), so a closed tab loses nothing. Save writes the maintainer file with the
-// catalog in its data block; Save team copy writes the team's file from the same page with the fences cut out.
-// A draft remembers which saved catalog it started from (base): a draft made against another copy is never laid over
-// this one without asking.
+// this browser at once as a draft (sdash.draft), so a closed tab loses nothing. Save writes the file.
+//
+// Many people edit, and they open the file from Teams and save it back, so the last one to save must never wipe out
+// the others. Save therefore MERGES: it reads the newest copy (the file itself where the browser can reopen it, or a
+// copy the person downloads from Teams and chooses), and lays this person's changes over it (merge3): what only they
+// changed is theirs, what only others changed is kept, and where both changed one thing differently this person's
+// version is kept and the change log says so. ED.base is the catalog this page started from; the merge needs it.
+//
+// The maintainer copy adds the Settings panel (maint.js) and three things only Brad does: Office settings, Import from
+// last version, and Save team copy (which merges into the team's file the same way).
 
 const SRC0 = '<!DOCTYPE html>\n' + document.documentElement.outerHTML;   // this page as it opened, before it drew
-const FA = '/*@' + 'MAINT>*/', FB = '/*<' + 'MAINT@*/';                // built from pieces: this file sits inside a fence
-const ED = { on: false, fileSig: '', teamSig: '', dirty: false, undo: null };
-// every part of a catalog that is written to a file. sigOf leaves out meta.updated, the stamp Save writes: saving the
-// team copy must not make the maintainer copy read as changed, nor the other way round.
-const catOut = cat => ({ meta: cat.meta || {}, categories: cat.categories, items: cat.items, notices: cat.notices || [], glossary: cat.glossary || [] });
+const FA = '/*@MAI' + 'NT>*/', FB = '/*<MAI' + 'NT@*/';               // built from pieces: a cut must never meet its own marker, and
+                                                                       // this file is in every copy, so no piece may look like a fence
+const ED = { on: false, fileSig: '', teamSig: '', dirty: false, undo: null, base: null, theirs: null };
+const IS_MAINT = () => typeof openSettings === 'function';
+// every part of a catalog that is written to a file. sigOf leaves out the stamp and version Save writes, so saving one
+// copy never makes another read as changed.
+const catOut = cat => ({ meta: cat.meta || {}, categories: cat.categories, items: cat.items, notices: cat.notices || [], glossary: cat.glossary || [], trash: cat.trash || [], log: cat.log || [] });
 const sigOf = cat => { const o = catOut(cat), m = { ...o.meta }; delete m.updated; delete m.version; const j = JSON.stringify({ ...o, meta: m }); let h = 5381; for (let i = 0; i < j.length; i++) h = ((h * 33) ^ j.charCodeAt(i)) >>> 0; return j.length + '.' + h.toString(36); };
-const plainCat = () => JSON.parse(JSON.stringify(catOut(CATALOG)));
+const plainOf = cat => JSON.parse(JSON.stringify(catOut(cat)));
+const plainCat = () => plainOf(CATALOG);
+const who = () => String(store.get('who', '') || '').slice(0, 60);
 
-function edKeep() {   // after every edit: keep the draft, mark unsaved, redraw
+function edKeep() {   // after every edit: keep the draft (with the catalog it started from), mark unsaved, redraw
   ED.dirty = sigOf(CATALOG) !== ED.fileSig;
-  if (ED.dirty) store.set('draft', { base: ED.fileSig, cat: plainCat(), t: Date.now() });
+  if (ED.dirty) store.set('draft', { base: ED.fileSig, baseCat: ED.base, cat: plainCat(), t: Date.now() });
   else try { localStorage.removeItem('sdash.draft'); } catch {}
   draw();
 }
@@ -521,13 +543,70 @@ function htmlWith(cat, team) {
     let out = '', i = 0, j;
     while ((j = html.indexOf(FA, i)) >= 0) { const k = html.indexOf(FB, j); if (k < 0) throw new Error('a maintainer fence is not closed'); out += html.slice(i, j); i = k + FB.length; }
     html = (out + html.slice(i)).replace('<title>Sustainment Dashboard (maintainer)</title>', '<title>Sustainment Dashboard</title>');
-    if (html.includes(FA) || /github/i.test(html)) throw new Error('the team copy would still carry maintainer material');
+    if (html.includes(FA) || html.includes('function ' + 'openSettings')) throw new Error('the team copy would still carry maintainer material');   // the words in pieces: written whole, this check would be what it finds
   }
   return html;
 }
 
-// ---- saving. Where the browser can write files (Edge, Chrome), the maintainer file is written in place and its handle
-// remembered; elsewhere, and if anything fails, the file is downloaded instead and the page says so.
+// ---- THE MERGE. Each part of a catalog is a list of things with a key; for every key, the base (where this page
+// started), mine (this page now) and theirs (the newest file) decide: unchanged by me -> theirs; unchanged by them ->
+// mine (a deletion included); both the same -> that; both changed differently -> mine, and named as a conflict.
+const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+function merge3list(B, M, T, key, what, conflicts) {
+  const map = L => new Map((L || []).map(x => [key(x), x]));
+  const b = map(B), m = map(M), t = map(T);
+  const pick = k => {
+    const vb = b.get(k), vm = m.get(k), vt = t.get(k);
+    if (same(vm, vb)) return vt;
+    if (same(vt, vb)) return vm;
+    if (same(vm, vt)) return vm;
+    conflicts.push(what(vm || vt || vb));
+    return vm !== undefined ? vm : vt;   // mine wins; if I deleted it and they changed it, their change is kept
+  };
+  // their order, then what only I have, in my order; but if only I reordered (sections), my order
+  const ko = L => (L || []).map(key);
+  let order = ko(T).concat(ko(M).filter(k => !t.has(k)));
+  if (!same(ko(M), ko(B)) && same(ko(T), ko(B))) order = ko(M).concat(ko(T).filter(k => !m.has(k)));
+  return order.map(pick).filter(x => x !== undefined);
+}
+function merge3(B, M, T) {
+  const conflicts = [], out = { meta: {} };
+  out.categories = merge3list(B.categories, M.categories, T.categories, k => k.id, k => 'section “' + k.name + '”', conflicts);
+  out.items = merge3list(B.items, M.items, T.items, c => ckey(c), c => 'link “' + c.name + '”', conflicts);
+  out.glossary = merge3list(B.glossary, M.glossary, T.glossary, g => g.term.toLowerCase(), g => 'term “' + g.term + '”', conflicts);
+  out.notices = merge3list(B.notices, M.notices, T.notices, n => n.id, n => 'announcement “' + n.text.slice(0, 40) + '”', conflicts);
+  out.trash = merge3list(B.trash, M.trash, T.trash, x => x.id, () => 'a deleted item', []);
+  for (const f of new Set(Object.keys(M.meta || {}).concat(Object.keys(T.meta || {})))) {
+    const vb = (B.meta || {})[f], vm = (M.meta || {})[f], vt = (T.meta || {})[f];
+    const v = same(vm, vb) ? vt : vm; if (v !== undefined) out.meta[f] = v;
+  }
+  // the log is everyone's: every entry from both, oldest first
+  const seen = new Set(), log = [];
+  for (const e of (T.log || []).concat(M.log || [])) { const k = e.t + '|' + e.who + '|' + e.what; if (!seen.has(k)) { seen.add(k); log.push(e); } }
+  out.log = log.sort((a, x) => a.t.localeCompare(x.t)).slice(-LOG_MAX);
+  return { cat: out, conflicts };
+}
+// what this person changed, in words, for the change log
+const LOG_MAX = 500;
+function describe(B, M) {
+  const out = [], idx = (L, key) => new Map((L || []).map(x => [key(x), x]));
+  const run = (L0, L1, key, noun, name) => {
+    const a = idx(L0, key), b = idx(L1, key);
+    for (const [k, v] of b) if (!a.has(k)) out.push('added ' + noun + ' “' + name(v) + '”'); else if (!same(a.get(k), v)) out.push('changed ' + noun + ' “' + name(v) + '”');
+    for (const [k, v] of a) if (!b.has(k)) out.push('deleted ' + noun + ' “' + name(v) + '”');
+  };
+  run(B.categories, M.categories, k => k.id, 'section', k => k.name);
+  run(B.items, M.items, c => ckey(c), 'link', c => c.name);
+  run(B.glossary, M.glossary, g => g.term.toLowerCase(), 'term', g => g.term);
+  run(B.notices, M.notices, n => n.id, 'announcement', n => n.text.slice(0, 50));
+  const mb = { ...B.meta }, mm = { ...M.meta }; for (const o of [mb, mm]) { delete o.updated; delete o.version; }
+  if (!same(mb, mm)) out.push('changed the office settings');
+  if (!same((B.categories || []).map(k => k.id), (M.categories || []).map(k => k.id)) && !out.some(x => / section /.test(x))) out.push('reordered the sections');
+  return out;
+}
+
+// ---- reading and writing files. Where the browser can write files (Edge, Chrome) the file is written in place and
+// its handle remembered, so the next Save can reopen it, merge and write; elsewhere the file is downloaded.
 const IDB = {
   db() { return new Promise((ok, no) => { const r = indexedDB.open('sdash', 1); r.onupgradeneeded = () => r.result.createObjectStore('h'); r.onsuccess = () => ok(r.result); r.onerror = () => no(r.error); }); },
   async get(k) { try { const d = await IDB.db(); return await new Promise(ok => { const r = d.transaction('h').objectStore('h').get(k); r.onsuccess = () => ok(r.result); r.onerror = () => ok(null); }); } catch { return null; } },
@@ -539,66 +618,199 @@ function download(name, html) {
   document.body.appendChild(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(a.href), 4000);
 }
-// what is already in a file decides whether it may be written over: a new or empty file, or one of the right kind
-async function fileKind(handle) {
-  try { const t = await (await handle.getFile()).text(); if (!t.trim()) return 'empty'; if (!t.includes('id="catData"')) return 'other'; return t.includes(FA) ? 'maint' : 'team'; }
-  catch { return 'unreadable'; }
+// a dashboard file's kind and its catalog: 'empty' (new), 'other' (not a dashboard), 'maint', 'team', 'unreadable'
+function catOfText(t) {
+  if (!t.trim()) return { kind: 'empty' };
+  const m = /<script id="catData" type="application\/json">([\s\S]*?)<\/script>/.exec(t);
+  if (!m) return { kind: 'other' };
+  let cat = null; try { cat = normCatalog(JSON.parse(m[1])); } catch {}
+  return { kind: t.includes(FA) ? 'maint' : 'team', cat };
 }
-async function writeTo(handle, html) {
-  const w = await handle.createWritable(); await w.write(html); await w.close();
-}
+async function readHandle(h) { try { return catOfText(await (await h.getFile()).text()); } catch { return { kind: 'unreadable' }; } }
+async function writeTo(handle, html) { const w = await handle.createWritable(); await w.write(html); await w.close(); }
 async function pickFile(name, key) {
   if (typeof window.showSaveFilePicker !== 'function') return null;
-  const h = await window.showSaveFilePicker({ suggestedName: name, id: key, types: [{ description: 'Web page', accept: { 'text/html': ['.html'] } }] });
-  return h;
+  return window.showSaveFilePicker({ suggestedName: name, id: key, types: [{ description: 'Web page', accept: { 'text/html': ['.html'] } }] });
 }
-async function saveFile({ team }) {
-  const name = team ? 'sustainment-dashboard.html' : 'sustainment-dashboard-maintainer.html';
-  const want = team ? 'team' : 'maint', key = team ? 'teamFile' : 'maintFile';
-  // the file says when its links were saved ("Links updated 22 Nov 2026" on the page); the stamp lands only if the write does
-  const stamp = new Date().toISOString();
-  let html;
-  try { html = htmlWith({ ...CATALOG, meta: { ...CATALOG.meta, updated: stamp, version: VERSION } }, team); } catch (e) { alert('Not saved: ' + e.message); return false; }
+const thisFileName = () => { try { return decodeURIComponent(location.pathname.split(/[\\/]/).pop()) || 'sustainment-dashboard.html'; } catch { return 'sustainment-dashboard.html'; } };
+// opened from Downloads (or a "(1)" copy): it came from Teams by hand and has to go back by hand
+const handCopy = () => { const p = (() => { try { return decodeURIComponent(location.pathname); } catch { return location.pathname; } })(); return location.protocol === 'file:' && (/[\\/]downloads[\\/]/i.test(p) || /\(\d+\)\.html?$/i.test(p)); };
+
+// the merge before a write: base -> mine over theirs. Returns what to write and what to say; CATALOG becomes the result.
+function mergeInto(theirs, base) {
+  const mine = plainCat(), b = base || { categories: [], items: [], glossary: [], notices: [], trash: [], log: [], meta: {} };
+  const mineChanges = describe(b, mine);
+  if (!theirs || sigOf(theirs) === sigOf(b)) return { changes: mineChanges, kept: 0, conflicts: [] };
+  const kept = describe(b, plainOf(theirs)).length;
+  const r = merge3(b, mine, plainOf(theirs));
+  CATALOG = { ...r.cat, fixed: [] };
+  return { changes: mineChanges, kept, conflicts: r.conflicts };
+}
+// one Save: merge, stamp, log, write. `team` writes the team copy (from the maintainer copy: Save team copy).
+async function saveFile({ team, theirs = null, base = undefined, handle = null }) {
+  const name = team ? 'sustainment-dashboard.html' : (IS_MAINT() ? 'sustainment-dashboard-maintainer.html' : thisFileName());
+  const want = team || !IS_MAINT() ? 'team' : 'maint', key = team || !IS_MAINT() ? 'teamFile' : 'maintFile';
+  let h = handle, fresh = false;
   try {
-    let h = await IDB.get(key), fresh = false;
-    if (h && h.queryPermission && (await h.queryPermission({ mode: 'readwrite' })) !== 'granted') {
-      if ((await h.requestPermission({ mode: 'readwrite' })) !== 'granted') h = null;
+    if (!h) {
+      h = await IDB.get(key);
+      if (h && h.queryPermission && (await h.queryPermission({ mode: 'readwrite' })) !== 'granted') {
+        if ((await h.requestPermission({ mode: 'readwrite' })) !== 'granted') h = null;
+      }
     }
+    // a file the browser can reopen is read first: it is the newest copy, whoever saved it
+    if (h && !theirs) {
+      const r = await readHandle(h);
+      if (r.kind === 'other') { alert('Not saved: “' + h.name + '” is not a Sustainment Dashboard file, and is left as it was.'); return false; }
+      if (r.kind !== 'empty' && r.kind !== 'unreadable' && r.kind !== want) { alert('Not saved: “' + h.name + '” is the ' + (r.kind === 'maint' ? 'maintainer copy' : 'team copy') + '.'); await IDB.set(key, null); return false; }
+      if (r.cat) theirs = r.cat;
+    }
+  } catch { h = null; }
+  const prev = plainCat();
+  const m = mergeInto(theirs, base === undefined ? ED.base : base);
+  // the log: what this person changed, with their name
+  const stamp = new Date().toISOString(), by = who() || 'someone';
+  if (m.changes.length) {
+    CATALOG.log = (CATALOG.log || []).concat(m.changes.slice(0, 40).map(what => ({ t: stamp, who: by, what })).concat(m.changes.length > 40 ? [{ t: stamp, who: by, what: 'and ' + (m.changes.length - 40) + ' more changes' }] : [])).slice(-LOG_MAX);
+  }
+  // deleted things are kept 90 days, then go for good
+  const cut = new Date(Date.now() - 90 * 864e5).toISOString();
+  CATALOG.trash = (CATALOG.trash || []).filter(x => x.t >= cut).slice(-200);
+  let html;
+  try { html = htmlWith({ ...CATALOG, meta: { ...CATALOG.meta, updated: stamp, version: VERSION } }, team); }
+  catch (e) { CATALOG = { ...prev, fixed: [] }; alert('Not saved: ' + e.message); return false; }
+  const done = how => {
+    CATALOG.meta.updated = stamp; CATALOG.meta.version = VERSION;
+    let msg = (how === 'written' ? 'Saved to ' + h.name : name + ' downloaded') + (m.kept ? '. Kept ' + m.kept + ' change(s) others had saved' : '');
+    if (m.conflicts.length) msg += '. Both you and someone else changed ' + m.conflicts.join(', ') + ': yours was kept';
+    toast(msg);
+    return { how, merged: m };
+  };
+  try {
     if (!h) { h = await pickFile(name, key); fresh = true; }
-    if (!h) { download(name, html); CATALOG.meta.updated = stamp; CATALOG.meta.version = VERSION; toast(name + ' downloaded: put it where the old one was'); return 'downloaded'; }
-    const kind = await fileKind(h);
-    // the Save window empties a file the moment it is chosen, so a fresh pick reads as empty: the name is the guard there
-    if (fresh && !/\.html?$/i.test(h.name || '')) { alert('Not saved: “' + h.name + '” is not an .html file.'); return false; }
-    if (fresh && team && /maintainer/i.test(h.name || '')) { alert('Not saved: “' + h.name + '” looks like your maintainer copy. Save the team copy under its own name, sustainment-dashboard.html.'); return false; }
-    if (kind === 'other') { alert('Not saved: “' + h.name + '” is not a Sustainment Dashboard file, and is left as it was.'); return false; }
-    if (kind !== 'empty' && kind !== 'unreadable' && kind !== want) {
-      alert('Not saved: “' + h.name + '” is the ' + (kind === 'maint' ? 'maintainer copy' : 'team copy') + '. Choose the ' + (team ? 'team copy' : 'maintainer copy') + ' instead.');
-      await IDB.set(key, null); return false;
-    }
+    if (!h) { download(name, html); return done('downloaded'); }
+    if (fresh && !/\.html?$/i.test(h.name || '')) { alert('Not saved: “' + h.name + '” is not an .html file.'); CATALOG = { ...prev, fixed: [] }; return false; }
+    if (fresh && want === 'team' && /maintainer/i.test(h.name || '')) { alert('Not saved: “' + h.name + '” looks like the maintainer copy. Save the team copy under its own name.'); CATALOG = { ...prev, fixed: [] }; return false; }
     await writeTo(h, html);
     await IDB.set(key, h);
-    CATALOG.meta.updated = stamp; CATALOG.meta.version = VERSION;
-    toast('Saved to ' + h.name);
-    return 'written';
+    return done('written');
   } catch (e) {
-    if (e && e.name === 'AbortError') return false;   // the person closed the Save window
-    download(name, html); CATALOG.meta.updated = stamp; CATALOG.meta.version = VERSION;
+    if (e && e.name === 'AbortError') { CATALOG = { ...prev, fixed: [] }; return false; }   // the Save window was closed
+    download(name, html);
     toast('Could not write the file (' + (e && e.message || e) + '); downloaded instead');
-    return 'downloaded';
+    return done('downloaded');
   }
 }
-async function edSave() {
-  const r = await saveFile({ team: false });
-  if (!r) return;
-  ED.fileSig = sigOf(CATALOG);
+// after a save: this page now IS the saved catalog
+function savedAs() {
+  ED.base = plainCat(); ED.fileSig = sigOf(CATALOG); ED.theirs = null;
   try { localStorage.removeItem('sdash.draft'); } catch {}
   edKeep();
 }
+
+// ---- Save. A name first (the log says who). With a file the browser can reopen: merge and write, no questions.
+// Otherwise the Save box: optionally choose the newest copy from Teams, save, and put it back on Teams.
+async function edSave() {
+  if (!(await askWho())) return;
+  if (IS_MAINT()) { const r = await saveFile({ team: false }); if (r) savedAs(); return; }
+  const h = await IDB.get('teamFile');
+  if (h) { const r = await saveFile({ team: false, handle: null }); if (r) { savedAs(); afterSave(r); } return; }
+  saveBox(false);
+}
 async function edSaveTeam() {
-  const r = await saveFile({ team: true });
+  if (!(await askWho())) return;
+  saveBox(true);
+}
+function saveBox(team) {
+  ED.theirs = null;
+  const n = describe(ED.base || {}, plainCat()).length;
+  dlg('<header><h2 id="sdlgT">' + (team ? 'Save the team copy' : 'Save your changes') + '</h2><button type="button" class="x" data-e="close" aria-label="Close">×</button></header><div class="eform">'
+    + (team ? '' : '<p>' + (n ? 'You made <b>' + n + '</b> change' + (n === 1 ? '' : 's') + '.' : 'Saving.') + ' Saving writes them into the dashboard file.</p>')
+    + '<ol class="steps"><li><b>Get the newest copy</b> ' + (team ? 'of the team’s file' : '') + 'so nobody’s changes are lost: download the dashboard from Teams again, then <button type="button" class="btn sm" data-e="pickTheirs">Choose the newest copy…</button>'
+    + '<div id="theirsSay" class="eh">Skip this only if you are sure nobody else has saved since you opened it.</div></li>'
+    + '<li><b>Save</b>: choose the file to write (the one you will put back on Teams).</li>'
+    + '<li><b>Put it back on Teams</b>: in the channel’s Files, Upload › choose the file › Replace.</li></ol>'
+    + '<p class="eh">Opening the dashboard from a synced Teams folder skips all of this: Save then merges and writes straight to Teams. Help explains how to set it up.</p></div>'
+    + '<footer><span class="sp"></span><button type="button" class="btn" data-e="close">Cancel</button><button type="button" class="btn pri" data-e="saveGo" data-team="' + (team ? 1 : 0) + '">Save</button></footer>', '[data-e="pickTheirs"]');
+}
+async function saveGo(team) {
+  const theirs = ED.theirs, base = team ? store.get('teamBase', null) : ED.base;
+  dlgClose();
+  const r = await saveFile({ team, theirs, base });
   if (!r) return;
-  ED.teamSig = sigOf(CATALOG); store.set('teamSig', ED.teamSig);
-  draw();
+  if (team) { store.set('teamBase', plainCat()); ED.teamSig = sigOf(CATALOG); store.set('teamSig', ED.teamSig); edKeep(); toast('Team copy saved' + (r.merged.kept ? ', with ' + r.merged.kept + ' change(s) the team had made' : '') + '. Upload it to Teams (Replace).'); }
+  else { savedAs(); afterSave(r); }
+}
+function afterSave(r) {
+  if (IS_MAINT() || !(r.how === 'downloaded' || handCopy())) return;
+  dlg('<header><h2 id="sdlgT">Saved: now put it back on Teams</h2><button type="button" class="x" data-e="close" aria-label="Close">×</button></header><div class="eform">'
+    + '<p>Your changes are in the file' + (r.how === 'written' ? '' : ' your browser just downloaded') + '. Nobody else sees them until it is back on Teams:</p>'
+    + '<ol class="steps"><li>Open the channel in Teams › <b>Files</b>.</li><li><b>Upload</b> › choose the dashboard file you just saved.</li><li>When Teams asks, choose <b>Replace</b>.</li></ol>'
+    + (r.merged.kept ? '<p class="eh">Your save kept ' + r.merged.kept + ' change(s) others had made, so replacing loses nobody’s work.</p>' : '<p class="eh">If someone else saved while you were working, choose their copy next time in Save (step 1) and nothing of theirs is lost.</p>')
+    + '</div><footer><span class="sp"></span><button type="button" class="btn pri" data-e="close">Done</button></footer>', 'footer .btn');
+}
+async function pickTheirs(f) {
+  const say = document.getElementById('theirsSay');
+  if (!f) return;
+  const r = catOfText(await f.text());
+  if (!r.cat) { ED.theirs = null; say.innerHTML = '<span class="eerr">“' + esc(f.name) + '” is not a Sustainment Dashboard file. Choose the one from Teams.</span>'; return; }
+  ED.theirs = r.cat;
+  const others = describe(ED.base || {}, plainOf(r.cat));
+  say.innerHTML = '✓ “' + esc(f.name) + '”' + (r.cat.meta.updated ? ', saved ' + esc(new Date(r.cat.meta.updated).toLocaleString()) : '') + ': '
+    + (others.length ? '<b>' + others.length + '</b> change(s) by others since you opened yours; they will be kept.' : 'nobody else has changed it since you opened yours.');
+}
+
+// ---- who is editing: asked once, remembered in this browser, written into the change log
+function askWho() {
+  if (who()) return Promise.resolve(true);
+  return new Promise(res => {
+    dlg('<header><h2 id="sdlgT">Who is editing?</h2><button type="button" class="x" data-e="whoCancel" aria-label="Close">×</button></header><div class="eform">'
+      + field('wName', 'Your name', '<input id="wName" maxlength="60" autocomplete="name" placeholder="First and last name">', 'Shown in the change log beside what you change. Asked once on this computer.')
+      + '<p class="eerr" id="eErr" role="alert"></p></div><footer><span class="sp"></span><button type="button" class="btn" data-e="whoCancel">Cancel</button><button type="button" class="btn pri" data-e="whoOk">Continue</button></footer>', '#wName');
+    ED.whoRes = res;
+  });
+}
+function whoOk() {
+  const v = document.getElementById('wName').value.trim();
+  if (!v) { document.getElementById('eErr').textContent = 'Type your name.'; return; }
+  store.set('who', v.slice(0, 60)); dlgClose(); const r = ED.whoRes; ED.whoRes = null; r && r(true); draw();
+}
+function whoCancel() { dlgClose(); const r = ED.whoRes; ED.whoRes = null; r && r(false); }
+
+// ---- Recently deleted: anything deleted is kept in the file 90 days, and anyone can put it back
+function trashPut(kind, rec, extra) {
+  const e = { id: kind + ':' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), t: new Date().toISOString(), who: who() || 'someone', kind, rec, ...(extra || {}) };
+  CATALOG.trash = (CATALOG.trash || []).concat([e]);
+  return e.id;
+}
+function trashList() {
+  const T = (CATALOG.trash || []).slice().reverse();
+  const nm = x => x.kind === 'link' ? x.rec.name : x.kind === 'section' ? x.rec.name + (x.links && x.links.length ? ' (and its ' + x.links.length + ' links)' : '') : x.kind === 'term' ? x.rec.term : x.rec.text;
+  const noun = { link: 'Link', section: 'Section', term: 'Term', notice: 'Announcement' };
+  dlg('<header><h2 id="sdlgT">Recently deleted</h2><button type="button" class="x" data-e="close" aria-label="Close">×</button></header><div class="eform">'
+    + '<p class="eh">Everything deleted in the last 90 days. Restore puts it back (save afterwards).</p>'
+    + (T.length ? '<ul class="llist boxed">' + T.map(x => '<li class="lrow"><span class="lmain"><span class="cname nolink">' + esc(nm(x)) + '</span><small>' + esc(noun[x.kind] || x.kind) + ' · deleted by ' + esc(x.who) + ', ' + esc(new Date(x.t).toLocaleString()) + '</small></span>'
+      + '<button type="button" class="btn sm" data-e="restore" data-k="' + esc(x.id) + '">Restore</button></li>').join('') + '</ul>' : '<p class="sempty">Nothing has been deleted.</p>')
+    + '</div><footer><span class="sp"></span><button type="button" class="btn pri" data-e="close">Done</button></footer>', 'button');
+}
+function restoreTrash(id) {
+  const i = (CATALOG.trash || []).findIndex(x => x.id === id); if (i < 0) return;
+  const x = CATALOG.trash[i], keys = new Set(CATALOG.items.map(ckey));
+  const putLink = c => { const it = { ...c }; if (keys.has(ckey(it))) it.id = slugId(it.name, new Set([...keys].map(k => k.slice(2)))); keys.add(ckey(it)); if (!cats().some(k => k.id === it.category)) it.category = ''; CATALOG.items.push(it); };
+  if (x.kind === 'link') putLink(x.rec);
+  if (x.kind === 'section') { if (!cats().some(k => k.id === x.rec.id)) CATALOG.categories.push(x.rec); (x.links || []).forEach(putLink); }
+  if (x.kind === 'term' && !glossary().some(g => g.term.toLowerCase() === x.rec.term.toLowerCase())) CATALOG.glossary.push(x.rec);
+  if (x.kind === 'notice') CATALOG.notices.push(x.rec);
+  CATALOG.trash.splice(i, 1);
+  edKeep(); trashList(); toast('Restored (not saved yet)');
+}
+// ---- the change log: who changed what, newest first
+function logList() {
+  const L = (CATALOG.log || []).slice().reverse();
+  dlg('<header><h2 id="sdlgT">Change log</h2><button type="button" class="x" data-e="close" aria-label="Close">×</button></header><div class="eform">'
+    + (L.length ? '<ul class="llist boxed">' + L.map(e => '<li class="lrow"><span class="lmain"><span class="cname nolink">' + esc(e.what) + '</span><small>' + esc(e.who) + ' · ' + esc(new Date(e.t).toLocaleString()) + '</small></span></li>').join('') + '</ul>'
+      : '<p class="sempty">No changes saved yet.</p>')
+    + '</div><footer><span class="sp"></span><button type="button" class="btn pri" data-e="close">Done</button></footer>', 'button');
 }
 
 // ---- the editing box (one <dialog>, used for a link and for a section)
@@ -687,7 +899,7 @@ function delLink(key) {
   const i = CATALOG.items.findIndex(x => ckey(x) === key);
   if (i < 0) return;
   const [gone] = CATALOG.items.splice(i, 1);
-  ED.undo = { kind: 'link', rec: gone, at: i };
+  ED.undo = { kind: 'link', rec: gone, at: i, trash: trashPut('link', gone) };
   dlgClose(); edKeep();
   toast('Deleted “' + gone.name + '”');
 }
@@ -723,7 +935,7 @@ function delSection(id) {
   const at = CATALOG.categories.indexOf(k);
   CATALOG.categories.splice(at, 1);
   CATALOG.items = CATALOG.items.filter(c => c.category !== id);
-  ED.undo = { kind: 'section', rec: k, at, links };
+  ED.undo = { kind: 'section', rec: k, at, links, trash: trashPut('section', k, { links }) };
   dlgClose(); edKeep();
   toast('Deleted the section “' + k.name + '”');
 }
@@ -738,6 +950,7 @@ function edUndo() {
   const u = ED.undo; if (!u) return;
   if (u.kind === 'link') CATALOG.items.splice(Math.min(u.at, CATALOG.items.length), 0, u.rec);
   else { CATALOG.categories.splice(Math.min(u.at, CATALOG.categories.length), 0, u.rec); CATALOG.items.push(...u.links); }
+  CATALOG.trash = (CATALOG.trash || []).filter(x => x.id !== u.trash);
   ED.undo = null; edKeep(); toast('Put back');
 }
 function edDiscard() {
@@ -813,24 +1026,34 @@ function importReplace() {
 const MAINT_HOOKS = {
   editing: () => ED.on,
   init() {
-    ED.fileSig = sigOf(CATALOG);
+    ED.fileSig = sigOf(CATALOG); ED.base = plainCat();
     ED.teamSig = store.get('teamSig', '');
     ED.on = !!store.get('editing', false);
     const d = store.get('draft', null);
     if (d && d.cat && d.base === ED.fileSig) { CATALOG = normCatalog(d.cat); ED.dirty = sigOf(CATALOG) !== ED.fileSig; }
+    else if (d && d.cat && d.baseCat && sigOf(normCatalog(d.cat)) !== ED.fileSig) {
+      // edits made in this browser to an older copy, and the file has moved on since (someone else saved): the same
+      // merge Save does lays them over this file, so neither theirs nor these are lost
+      const r = merge3(plainOf(normCatalog(d.baseCat)), plainOf(normCatalog(d.cat)), plainCat());
+      CATALOG = { ...r.cat, fixed: [] }; ED.dirty = sigOf(CATALOG) !== ED.fileSig;
+      ED.base = plainOf(normCatalog(d.baseCat)); store.set('draft', { base: ED.fileSig, baseCat: ED.base, cat: plainCat(), t: Date.now() });
+      setTimeout(() => toast('Your unsaved edits from ' + new Date(d.t || 0).toLocaleString() + ' were laid over this newer copy. Save to keep them.'), 400);
+    }
     else if (d && d.cat && sigOf(normCatalog(d.cat)) !== ED.fileSig) {
       // a draft made against a different saved catalog (another copy, or this one before a Save elsewhere)
       if (confirm('This browser holds unsaved catalog edits made to a different copy of the dashboard (' + new Date(d.t || 0).toLocaleString() + ').\n\nOK: show those edits here (Save to keep them).\nCancel: throw them away and show this file’s links.')) {
-        CATALOG = normCatalog(d.cat); ED.dirty = true; store.set('draft', { base: ED.fileSig, cat: plainCat(), t: Date.now() });
+        CATALOG = normCatalog(d.cat); ED.dirty = true; store.set('draft', { base: ED.fileSig, baseCat: ED.base, cat: plainCat(), t: Date.now() });
       } else try { localStorage.removeItem('sdash.draft'); } catch {}
     } else if (d) try { localStorage.removeItem('sdash.draft'); } catch {}
-    document.body.insertAdjacentHTML('beforeend', '<input type="file" id="impFile" accept=".html,.htm" hidden>');
+    document.body.insertAdjacentHTML('beforeend', '<input type="file" id="impFile" accept=".html,.htm" hidden><input type="file" id="theirsFile" accept=".html,.htm" hidden>');
+    document.getElementById('theirsFile').addEventListener('change', e => { const f = e.target.files[0]; e.target.value = ''; pickTheirs(f); });
     document.getElementById('impFile').addEventListener('change', e => { const f = e.target.files[0]; e.target.value = ''; importFile(f); });
     document.addEventListener('click', e => {
       const b = e.target.closest('[data-e]'); if (!b) return;
       const k = b.dataset.k, sId = b.dataset.s;
       switch (b.dataset.e) {
-        case 'toggle': ED.on = !ED.on; store.set('editing', ED.on); if (ED.on && S.tab === 'tools') { S.tab = 'all'; store.set('tab', 'all'); } draw(); document.querySelector('[data-e="toggle"]')?.focus(); break;
+        case 'toggle': if (!ED.on && !IS_MAINT()) { askWho().then(ok => { if (ok) { ED.on = true; store.set('editing', true); draw(); document.querySelector('[data-e="toggle"]')?.focus(); } }); break; }
+          ED.on = !ED.on; store.set('editing', ED.on); if (ED.on && S.tab === 'tools') { S.tab = 'all'; store.set('tab', 'all'); } draw(); document.querySelector('[data-e="toggle"]')?.focus(); break;
         case 'save': edSave(); break;
         case 'saveTeam': edSaveTeam(); break;
         case 'import': importPick(); break;
@@ -848,13 +1071,21 @@ const MAINT_HOOKS = {
         case 'saveSection': saveSection(sId); break;
         case 'mv': moveSection(sId, +b.dataset.d); break;
         case 'close': dlgClose(); break;
+        case 'saveGo': saveGo(b.dataset.team === '1'); break;
+        case 'pickTheirs': document.getElementById('theirsFile').click(); break;
+        case 'whoOk': whoOk(); break;
+        case 'whoCancel': whoCancel(); break;
+        case 'whoChange': store.set('who', ''); askWho(); break;
+        case 'trash': trashList(); break;
+        case 'restore': restoreTrash(k); break;
+        case 'log': logList(); break;
         case 'paste': pasteForm(); break;
         case 'pasteCheck': pasteCheck(false); break;
         case 'pasteAdd': pasteCheck(true); break;
         case 'export': exportCsv(); break;
         case 'checkList': checkList(); break;
         case 'markChecked': markChecked(k); break;
-        case 'office': officeForm(); break;
+        case 'office': if (IS_MAINT()) officeForm(); break;
         case 'saveOffice': saveOffice(); break;
         case 'news': newsList(); break;
         case 'addNews': newsForm(-1); break;
@@ -876,22 +1107,34 @@ const MAINT_HOOKS = {
   },
   drawBar() {
     const bar = document.getElementById('maintBar'); if (!bar) return;
+    const M = IS_MAINT();
+    const save = '<button type="button" class="mb pri" data-e="save"' + (ED.dirty ? '' : ' aria-disabled="true"') + '>Save</button>';
+    const tools = '<button type="button" class="mb" data-e="paste">Paste from Excel…</button><button type="button" class="mb" data-e="export">Export to Excel</button>'
+      + '<button type="button" class="mb" data-e="checkList">Needs checking' + (needsCheck().length ? ' <b class="cnt">' + needsCheck().length + '</b>' : '') + '</button>'
+      + '<button type="button" class="mb" data-e="trash">Recently deleted' + ((CATALOG.trash || []).length ? ' <b class="cnt">' + CATALOG.trash.length + '</b>' : '') + '</button>'
+      + '<button type="button" class="mb" data-e="log">Change log</button>';
+    const status = (ED.dirty ? '<span class="pill warn" role="status">Unsaved changes</span>' : '') + (ED.undo ? '<button type="button" class="mb" data-e="undo">Undo delete</button>' : '');
+    if (!M) {
+      // everyone's copy: a slim bar that opens editing; while editing (or with unsaved changes), the tools and Save
+      bar.hidden = false;
+      bar.className = 'maint team' + (ED.on || ED.dirty ? ' on' : '');
+      bar.innerHTML = '<button type="button" class="mb" data-e="toggle" aria-pressed="' + ED.on + '">' + (ED.on ? 'Done editing' : '✎ Edit links') + '</button>'
+        + (ED.on && who() ? '<span class="mt">Editing as ' + esc(who()) + ' <button type="button" class="lnk" data-e="whoChange">not you?</button></span>' : !ED.on ? '<span class="mt">Anyone can add, change or delete links. Changes are logged and can be undone.</span>' : '')
+        + status + '<span class="sp"></span>' + (ED.on ? tools + (ED.dirty ? '<button type="button" class="mb" data-e="discard">Discard changes</button>' : '') : '') + (ED.on || ED.dirty ? save : '');
+      return;
+    }
     const teamOld = ED.teamSig !== sigOf(CATALOG);
-    const fresh = !CATALOG.meta.updated && !ED.dirty;   // a copy nobody has saved yet: a new version, straight from GitHub
+    const fresh = !CATALOG.meta.updated && !ED.dirty;   // a copy nobody has saved yet: a new version, just downloaded
     bar.innerHTML = (fresh ? '<span class="newver"><b>New copy (' + esc(VERSION) + ').</b> Bring your links across from your last version first: '
         + '<button type="button" class="mb pri" data-e="import">Import from last version…</button></span><span class="brk"></span>' : '')
       + '<span class="mt">Maintainer copy: keep this file to yourself.' + (CATALOG.meta.contact || fresh ? '' : ' <button type="button" class="lnk" data-e="office">Add your contact email</button> so people can report broken links.') + '</span>'
       + '<button type="button" class="mb" data-e="toggle" aria-pressed="' + ED.on + '">' + (ED.on ? 'Done editing' : 'Edit catalog') + '</button>'
-      + (ED.dirty ? '<span class="pill warn" role="status">Unsaved changes</span>' : fresh ? '' : '<span class="pill" role="status">Saved</span>')
-      + (ED.undo ? '<button type="button" class="mb" data-e="undo">Undo delete</button>' : '')
+      + (ED.dirty ? '' : fresh ? '' : '<span class="pill" role="status">Saved</span>') + status
       + '<span class="sp"></span>'
-      + (ED.on ? '<button type="button" class="mb" data-e="paste">Paste from Excel…</button><button type="button" class="mb" data-e="export">Export to Excel</button>'
-        + '<button type="button" class="mb" data-e="checkList">Needs checking' + (needsCheck().length ? ' <b class="cnt">' + needsCheck().length + '</b>' : '') + '</button>'
-        + '<button type="button" class="mb" data-e="office">Office settings…</button>'
-        + (ED.dirty ? '<button type="button" class="mb" data-e="discard">Discard changes</button>' : '') : '')
+      + (ED.on ? tools + '<button type="button" class="mb" data-e="office">Office settings…</button>' + (ED.dirty ? '<button type="button" class="mb" data-e="discard">Discard changes</button>' : '') : '')
       + (fresh ? '' : '<button type="button" class="mb" data-e="import">Import from last version…</button>')
-      + '<button type="button" class="mb pri" data-e="save"' + (ED.dirty ? '' : ' aria-disabled="true"') + '>Save</button>'
-      + '<button type="button" class="mb" data-e="saveTeam" title="Write sustainment-dashboard.html, the copy for Teams">Save team copy…' + (teamOld ? ' <span class="dot-warn" aria-label="(out of date)">●</span>' : '') + '</button>';
+      + save
+      + '<button type="button" class="mb" data-e="saveTeam" title="Write sustainment-dashboard.html, the copy for Teams, with the team’s own changes kept">Save team copy…' + (teamOld ? ' <span class="dot-warn" aria-label="(out of date)">●</span>' : '') + '</button>';
   },
   rowActs(c, k) {
     if (!ED.on) return '';
@@ -911,7 +1154,7 @@ const MAINT_HOOKS = {
   glossFoot: () => ED.on ? '<div class="addsec top"><button type="button" class="btn" data-e="addTerm">+ Add a term</button></div>' : '',
   termActs: g => ED.on ? ' <button type="button" class="lic ed" data-e="editTerm" data-t="' + esc(g.term) + '" aria-label="Change ' + esc(g.term) + '">' + UI.edit + '</button><button type="button" class="lic ed danger" data-e="delTerm" data-t="' + esc(g.term) + '" aria-label="Delete ' + esc(g.term) + '">' + UI.trash + '</button>' : '',
   // a new section joins the Everything tab; take the person there so they see it arrive
-  footNote: () => ' Tools are listed in src/tools.js; links are edited here, with Edit catalog.',
+  footNote: () => IS_MAINT() ? ' Tools are listed in src/tools.js; links are edited here, with Edit catalog.' : '',
 };
 
 
@@ -1077,12 +1320,13 @@ function saveNews(i) {
   if (v('nUntil')) { if (v('nUntil') < n.date) { err.textContent = '“Show until” is before the day it is posted.'; return; } n.until = v('nUntil'); }
   if (v('nUrl')) { if (!linkOk(v('nUrl'))) { err.textContent = 'The link must start with https://.'; return; } n.url = v('nUrl'); }
   CATALOG.notices = CATALOG.notices || [];
+  n.id = i >= 0 ? CATALOG.notices[i].id : 'n' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
   if (i >= 0) CATALOG.notices[i] = n; else CATALOG.notices.push(n);
   dlgClose(); edKeep(); toast('Announcement ' + (i >= 0 ? 'changed' : 'added') + ' (not saved yet)');
 }
 function delNews(i) {
   const n = CATALOG.notices[i]; if (!n || !confirm('Delete the announcement “' + n.text.slice(0, 80) + '”?')) return;
-  CATALOG.notices.splice(i, 1); edKeep(); newsList();
+  trashPut('notice', n); CATALOG.notices.splice(i, 1); edKeep(); newsList();
 }
 
 // ---- the glossary
@@ -1109,9 +1353,8 @@ function saveTerm(old) {
 function delTerm(term) {
   const i = CATALOG.glossary.findIndex(x => x.term === term);
   if (i < 0 || !confirm('Delete “' + term + '” from the glossary?')) return;
-  CATALOG.glossary.splice(i, 1); edKeep(); toast('Deleted “' + term + '”');
+  trashPut('term', CATALOG.glossary[i]); CATALOG.glossary.splice(i, 1); edKeep(); toast('Deleted “' + term + '”');
 }
-/*<MAINT@*/
 
 // ===== app.js =====
 'use strict';
@@ -1120,7 +1363,7 @@ function delTerm(term) {
 // pinned and what was opened lately.
 
 // this program's version: shown in the footer, and written into every file it saves, so a file says which version wrote it
-const VERSION = 'v1.7';
+const VERSION = 'v1.8';
 const STATUS = {
   live:    { label: 'Live',           cls: 'st-live',    order: 0 },
   dev:     { label: 'In development', cls: 'st-dev',     order: 1 },
@@ -1207,7 +1450,7 @@ const TYPES = {
 function normCatalog(raw) {
   const fixed = [], str = v => (typeof v === 'string' ? v : v == null ? '' : String(v)).trim();
   const out = { meta: {}, categories: [], items: [], notices: [], glossary: [] };
-  const seen = new Set();
+  const seen = new Set(), lids = new Set();
   // the office's settings: who reports and suggestions go to, and when the links were last saved
   const m = raw && raw.meta && typeof raw.meta === 'object' ? raw.meta : {};
   if (str(m.contact)) { if (emailOk(str(m.contact))) out.meta.contact = str(m.contact); else fixed.push('the contact address “' + str(m.contact).slice(0, 60) + '” is not an email address and was set aside'); }
@@ -1231,7 +1474,10 @@ function normCatalog(raw) {
     // a date (a training session, a board, a deadline): YYYY-MM-DD, or nothing. One that is not a real day is set aside.
     const d = str(c.date);
     if (d && dateOk(d)) it.date = d; else if (d) fixed.push('“' + name + '”: its date “' + d.slice(0, 20) + '” is not a date and was set aside');
-    if (c.id) it.id = str(c.id).toLowerCase().replace(/[^a-z0-9-]+/g, '-');
+    // every link has an id: pins, recently opened and the merge of two people's saves all follow it, however it is renamed
+    let lid = str(c.id).toLowerCase().replace(/[^a-z0-9-]+/g, '-') || name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'link';
+    if (lids.has(lid)) { let n = 2; while (lids.has(lid + '-' + n)) n++; lid += '-' + n; }
+    lids.add(lid); it.id = lid;
     if (str(c.keywords)) it.keywords = str(c.keywords).slice(0, 300);
     const ck = str(c.checked); if (ck && dateOk(ck)) it.checked = ck;
     if (!TYPES[it.type]) { fixed.push('“' + name + '”: type “' + it.type + '” read as Web'); it.type = 'web'; }
@@ -1244,6 +1490,8 @@ function normCatalog(raw) {
     const text = str(n && n.text).slice(0, 300);
     if (!text) continue;
     const no = { text, date: dateOk(str(n.date)) ? str(n.date) : today() };
+    // an id for the merge: the one it has, or one made from what it says (the same on every copy)
+    no.id = /^[a-z0-9]{2,40}$/i.test(str(n.id)) ? str(n.id) : 'n' + [...(text + no.date)].reduce((h, ch) => (h * 33 ^ ch.charCodeAt(0)) >>> 0, 5381).toString(36);
     if (dateOk(str(n.until))) no.until = str(n.until);
     if (str(n.url)) { if (linkOk(str(n.url))) no.url = str(n.url); else fixed.push('an announcement’s link is not https:// and was set aside'); }
     out.notices.push(no);
@@ -1259,6 +1507,11 @@ function normCatalog(raw) {
     if (str(g.url)) { if (linkOk(str(g.url))) e.url = str(g.url); else fixed.push('“' + term + '”: its link is not https:// and was set aside'); }
     out.glossary.push(e);
   }
+  // Recently deleted (90 days) and the change log: everyone's, carried in the file
+  out.trash = (raw && Array.isArray(raw.trash) ? raw.trash : []).filter(x => x && typeof x === 'object' && ['link', 'section', 'term', 'notice'].includes(x.kind) && x.rec && typeof x.rec === 'object' && str(x.id) && !isNaN(Date.parse(str(x.t))))
+    .map(x => ({ id: str(x.id).slice(0, 60), t: str(x.t), who: str(x.who).slice(0, 60) || 'someone', kind: x.kind, rec: x.rec, ...(Array.isArray(x.links) ? { links: x.links } : {}) })).slice(-200);
+  out.log = (raw && Array.isArray(raw.log) ? raw.log : []).filter(e => e && !isNaN(Date.parse(str(e.t))) && str(e.what))
+    .map(e => ({ t: str(e.t), who: str(e.who).slice(0, 60) || 'someone', what: str(e.what).slice(0, 200) })).slice(-500);
   out.fixed = fixed;
   return out;
 }
@@ -1564,8 +1817,8 @@ function draw() {
   // a copy opened from the Downloads folder is a copy someone saved once, and it does not change when the links do
   const path = (() => { try { return decodeURIComponent(location.pathname); } catch { return location.pathname; } })();
   const stale = location.protocol === 'file:' && (/[\\/]downloads[\\/]/i.test(path) || /\(\d+\)\.html?$/i.test(path));
-  document.getElementById('staleNote').innerHTML = stale && !HAS_MAINT ? '<p class="stale" role="note"><b>This is a downloaded copy.</b> It does not change when the links are updated'
-    + (up ? ' (this one is from ' + esc(up) + ')' : '') + '. Open the dashboard from Teams, or bookmark it there, to always see the current links.</p>' : '';
+  document.getElementById('staleNote').innerHTML = stale && !HAS_MAINT ? '<p class="stale" role="note"><b>This is a downloaded copy</b>' + (up ? ', with links as of ' + esc(up) : '')
+    + '. It does not change when someone else updates the dashboard: open it from Teams again to see the latest. If you edit links here, Save, then upload it back to Teams (Help explains).</p>' : '';
   document.getElementById('main').innerHTML = mainHtml() + '<footer class="foot">This page holds no data: it is a list of links. Pins and recently opened are kept in your browser only.' + HOOK('footNote') + ' <span class="ver">Sustainment Dashboard ' + VERSION + '</span></footer>';
 }
 
@@ -1608,6 +1861,9 @@ function openHelp() {
       + 'The first time, your browser asks whether this page may open Excel: tick “Always allow”. Prefer the browser? Hover over the link and choose Browser.')
     + q('What are the stars and the tiles at the top?', 'Star (☆) any link to pin it. Pinned links are the big tiles at the top of Everything. Pins are kept in your browser, so everyone builds their own set; the × on a tile unpins it.')
     + q('How do I find something fast?', 'Press / anywhere and type. Search covers the tools, every link, their notes and keywords, and the glossary. The tabs narrow it: Files, Websites, Forms, and your service’s own tab.')
+    + q('Can I add or fix a link myself?', 'Yes, anyone can. Press <b>Edit links</b> at the top, type your name once, then use <b>+ Link</b> on a section, or the pencil and bin on a link. Deleted things go to <b>Recently deleted</b>, where anyone can restore them, and the <b>Change log</b> shows who changed what.')
+    + q('How do I save my changes back to Teams?', 'Press <b>Save</b>. If others may have changed the dashboard since you opened it, download it from Teams again and choose it in step 1: your changes are added to theirs, so nobody’s work is lost. Then in Teams: the channel’s <b>Files</b> › <b>Upload</b> › your saved file › <b>Replace</b>.')
+    + q('Is there an easier way to save?', 'Yes: sync the Teams folder once. In Teams, open the channel’s <b>Files</b> and choose <b>Sync</b> (or <b>Add shortcut to OneDrive</b>). The folder then appears in File Explorer. Open the dashboard from there, bookmark it, and Save goes straight back to Teams, merging with anyone else’s changes, with no download or upload.')
     + q('A link does not work, or something is missing.', CATALOG.meta.contact ? 'Use the flag (⚑) on the link to report it, or Suggest a link at the top. Both open an email to ' + esc(CATALOG.meta.contact) + ' with the details filled in.'
       : 'Tell the person who looks after the dashboard.')
     + q('Can I use it on my phone?', 'Not in the Teams phone app, which cannot run a page like this one. Use it on a computer, in Edge or Chrome.')
@@ -1624,7 +1880,7 @@ function boot() {
     '<header class="top"><h1 class="brand">' + ICONS.hub() + '<span>' + esc(DASH.title) + '</span></h1>'
     + '<div class="tr"><span id="suggestSlot"></span><button type="button" class="tpill" id="helpBtn" aria-haspopup="dialog">' + UI.help + 'Help</button><a class="tpill" href="#pinned">' + UI.pinOn + 'Pinned <b id="pinCount"></b></a>'
     + (HAS_MAINT ? '<button type="button" class="gear" id="gear" aria-haspopup="dialog" title="Settings: latest versions">' + UI.gear + '<span>Settings</span></button>' : '') + '</div></header>'
-    + (HAS_MAINT ? '<div class="maint" id="maintBar"></div>' : '')
+    + '<div class="maint" id="maintBar"></div>'
     + '<div id="staleNote"></div>'
     + '<div class="hero2"><h2>' + greet() + '. What do you need?</h2><p>Every tool, tracker, form and website the office uses, one search away.<span id="updStamp"></span></p>'
     + '<div class="sbox" role="search">' + UI.search + '<label class="vh" for="q">Search the tools and the catalog</label>'
@@ -1633,7 +1889,7 @@ function boot() {
     + '<main id="main" tabindex="-1"></main>'
     + '<div class="toast" id="toast" role="status" hidden></div>'
     + '<dialog class="sdlg" id="hdlg" aria-labelledby="hdlgT"></dialog>'
-    + (HAS_MAINT ? '<dialog class="sdlg" id="sdlg" aria-labelledby="sdlgT"></dialog>' : '');
+    + '<dialog class="sdlg" id="sdlg" aria-labelledby="sdlgT"></dialog>';
   HOOK('init');
   const q = document.getElementById('q');
   q.addEventListener('input', () => { S.q = q.value.trim(); draw(); });

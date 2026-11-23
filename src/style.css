@@ -309,3 +309,16 @@ a.tpill[href^="#"] svg{color:#a36a00}
 .imptab th{text-align:left;padding:5px 12px 5px 0;color:var(--smut);font-weight:700;white-space:nowrap;vertical-align:top;width:9em}
 .imptab td{padding:5px 0;border-bottom:1px solid #e3e8ee}
 .foot .ver{float:right;color:var(--smut)}
+/* everyone's edit bar: slim until editing */
+.maint.team{background:var(--sbg2);border-bottom:1px solid var(--sline);color:var(--sink);font-weight:600}
+.maint.team .mb{border-color:var(--sedge);color:var(--sink)}
+.maint.team .mb:hover{background:var(--ssel)}
+.maint.team .mb[aria-pressed=true]{background:var(--acc);color:var(--onAcc);border-color:var(--acc)}
+.maint.team.on{background:var(--ochreBg);border-color:var(--ochre)}
+.maint.team .mt{font-weight:400;color:var(--smut)}
+.maint.team .lnk{color:var(--slink)}
+ol.steps{margin:4px 0;padding-left:20px}
+ol.steps li{margin:0 0 8px}
+.maint.team .mb.pri{background:var(--acc);border-color:var(--acc);color:var(--onAcc)}
+.maint.team .mb.pri:hover{background:var(--accHover);color:#fff}
+.maint.team .mb.pri[aria-disabled=true]{background:var(--spanel2);border-color:var(--sline);color:var(--smut)}

@@ -9,7 +9,14 @@ const D = mkdtempSync(join(tmpdir(), 'sdash-test-')) + '/';
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 let failed = 0;
 copyFileSync(ROOT + 'maintainer/sustainment-dashboard-maintainer.html', D + 'm.html');
-const b = await chromium.launch(); const ctx = await b.newContext({ acceptDownloads: true }); const p = await ctx.newPage();
+const b0 = await chromium.launch();
+// every context starts with a name on file, as for someone who has edited before (the name prompt is tested on its own)
+// The name is seeded from the page once it has loaded, never from an init script: in Chromium a file:// page that
+// touches storage while it is still being created can be given a storage area of its own, and a reload then lands in
+// another (the page's draft, pins and all vanished; ORBIT's pmo-save check met the same thing). seeded() wraps goto.
+const seedWho = (pg, name) => pg.evaluate(n => { try { if (!localStorage.getItem('sdash.who')) localStorage.setItem('sdash.who', JSON.stringify(n)); } catch {} }, name);
+const seeded = (pg, name) => { const go = pg.goto.bind(pg); pg.goto = async (...a) => { const r = await go(...a); if (name) await seedWho(pg, name); return r; }; return pg; };
+const b = { newContext: async (o) => { const c = await b0.newContext(o); const np = c.newPage.bind(c); c.newPage = async () => seeded(await np(), 'Test Person'); return c; }, close: () => b0.close() }; const ctx = await b.newContext({ acceptDownloads: true }); const p = await ctx.newPage();
 const errs = []; p.on('pageerror', e => errs.push(e.message)); p.on('dialog', d => d.accept());
 const ok = (c, m) => { if (!c) failed++; console.log((c ? 'PASS ' : 'FAIL ') + m); };
 // no file-writing API, so Save falls back to a download we can read
@@ -51,25 +58,29 @@ await p.click('[data-e="addLink"][data-s="travel"]'); await p.fill('#eName', 'DT
 await p.click('[data-e="mv"][data-s="travel"][data-d="-1"]');
 const order = await p.$$eval('#main .scard h3', a => a.map(x => x.textContent));
 ok(order.indexOf('Travel') < order.indexOf('Sites & dashboards'), 'section moved up');
-// reload before saving: nothing is lost
-await p.reload();
-ok((await rows()).includes('myPay (DFAS)') && (await rows()).includes('DTS'), 'unsaved edits survive a reload');
+// reload before saving: nothing is lost. (settle() is only a margin: the vanishing drafts this once chased were the
+// storage islands seedWho explains, not timing.)
+const settle = pg => pg.waitForTimeout(400);
+await settle(p); await p.reload();
+const kept = (await rows()).includes('myPay (DFAS)') && (await rows()).includes('DTS');
+ok(kept, 'unsaved edits survive a reload');
 ok(/Unsaved/.test(await p.$eval('#maintBar', e => e.textContent)), 'bar says unsaved');
 // Save (download fallback) and Save team copy
 const [dm] = await Promise.all([p.waitForEvent('download'), p.click('[data-e="save"]')]);
 await dm.saveAs(D + 'm2.html');
 ok(/Saved/.test(await p.$eval('#maintBar', e => e.textContent)) && !/Unsaved/.test(await p.$eval('#maintBar', e => e.textContent)), 'bar says saved after Save');
-const [dt] = await Promise.all([p.waitForEvent('download'), p.click('[data-e="saveTeam"]')]);
+const [dt] = await Promise.all([p.waitForEvent('download'), p.click('[data-e="saveTeam"]').then(() => p.click('[data-e="saveGo"]'))]);
 await dt.saveAs(D + 't2.html');
 const t2 = readFileSync(D + 't2.html', 'utf8'), m2 = readFileSync(D + 'm2.html', 'utf8');
-ok(!/github/i.test(t2) && !t2.includes('MAINT>') && !/function openSettings/.test(t2), 'saved team copy has no GitHub, no fence, no editor');
+{ const why = [/github/i.test(t2) && 'GitHub: …' + (t2.match(/.{50}github.{30}/i) || [''])[0], t2.includes('MAINT>') && 'a fence', /function openSettings/.test(t2) && 'the Settings panel'].filter(Boolean);
+  ok(!why.length, 'saved team copy has no GitHub, no fence, no Settings panel' + (why.length ? ' (has ' + why.join('; ') + ')' : '')); }
 ok(t2.includes('myPay (DFAS)') && m2.includes('myPay (DFAS)'), 'both saved files carry the new links');
 // open the saved files fresh (new browser storage) and look
 const ctx2 = await b.newContext(); const q = await ctx2.newPage(); q.on('pageerror', e => errs.push('saved: ' + e.message));
 await q.goto('file://' + D + 't2.html');
 const tr = await q.$$eval('#main .lrow .cname', a => a.map(x => x.textContent));
 ok(tr.includes('DTS') && tr.includes('myPay (DFAS)'), 'saved team copy shows the new links');
-ok(!(await q.$('#maintBar')) && !(await q.$('[data-e]')), 'saved team copy has no maintainer bar or edit buttons');
+ok(!(await q.$('#gear')) && !(await q.$('[data-e="saveTeam"]')) && !(await q.$('[data-e="import"]')) && !!(await q.$('[data-e="toggle"]')), 'saved team copy: Edit links for everyone, but no Settings, Save team copy or Import');
 await q.click('.tabs [data-tab="s:af"]');
 ok(JSON.stringify(await q.$$eval('#main .lrow .cname', a => a.map(x => x.textContent))) === JSON.stringify(['myPay (DFAS)']), 'Air Force tab shows only Air Force links');
 await q.click('.tabs [data-tab="files"]');
@@ -142,7 +153,7 @@ ok((await r2.$$eval('#main .scard h3', a => a.map(x => x.textContent))).filter(x
   await t.click('.tabs [data-tab="files"]');
   ok((await t.$$eval('#main .lrow .cname', a => a.map(x => x.textContent))).includes('Spend plan basics'), 'a recording is listed under Files');
   // the date survives Save team copy, and a date that is not a day is refused
-  const [dt] = await Promise.all([t.waitForEvent('download'), t.click('[data-e="saveTeam"]')]);
+  const [dt] = await Promise.all([t.waitForEvent('download'), t.click('[data-e="saveTeam"]').then(() => t.click('[data-e="saveGo"]'))]);
   await dt.saveAs(D + 'tr-team.html');
   ok(readFileSync(D + 'tr-team.html', 'utf8').includes('"date":"' + iso(10) + '"'), 'the saved team copy carries the dates');
   await t.click('[data-e="toggle"]'); await t.click('.tabs [data-tab="all"]');
@@ -200,7 +211,7 @@ ok((await r2.$$eval('#main .scard h3', a => a.map(x => x.textContent))).filter(x
   await h.fill('#gTerm', 'SFCB'); await h.fill('#gMean', 'The office’s funding board.'); await h.click('[data-e="saveTerm"]');
   // save the team copy, and open it as the team would
   await h.click('[data-e="toggle"]');
-  const [td] = await Promise.all([h.waitForEvent('download'), h.click('[data-e="saveTeam"]')]);
+  const [td] = await Promise.all([h.waitForEvent('download'), h.click('[data-e="saveTeam"]').then(() => h.click('[data-e="saveGo"]'))]);
   const { mkdirSync } = await import('node:fs'); mkdirSync(D + 'Downloads', { recursive: true });
   await td.saveAs(D + 'hub-team.html'); copyFileSync(D + 'hub-team.html', D + 'Downloads/hub-team.html');
   const ctx6 = await b.newContext(); const t = await ctx6.newPage(); t.on('pageerror', e => errs.push('hub team: ' + e.message));
@@ -236,9 +247,73 @@ ok((await r2.$$eval('#main .scard h3', a => a.map(x => x.textContent))).filter(x
   ok(await t.$eval('#hdlg', d => d.open) && /office\.box@example\.mil/.test(await t.$eval('#hdlg', d => d.textContent)), 'Help opens, and names where reports go');
   await t.keyboard.press('Escape');
   ok(!(await t.$eval('#hdlg', d => d.open)), 'Esc closes Help');
-  ok(!(await t.$('[data-e]')) && !(await t.$('.maint')), 'the team copy still has no editor');
+  ok(!(await t.$('#gear')) && !(await t.$('[data-e="saveTeam"]')) && !(await t.$('[data-e="office"]')), 'the team copy has no Settings, Save team copy or Office settings');
   await t.goto('file://' + D + 'Downloads/hub-team.html');
   ok(/downloaded copy/.test(await t.$eval('#staleNote', e => e.textContent)), 'a copy opened from Downloads says it may be out of date');
+}
+// ---- shared editing (Brad, 23 Nov 2026: "anyone using to be able to update the links"). Everyone opens the team copy
+// from Teams, edits, saves, and puts it back; two people working at once must both keep their work.
+{
+  const team0 = D + 'team0.html'; copyFileSync(ROOT + 'sustainment-dashboard.html', team0);
+  const person = async (name) => {
+    const c = await b0.newContext({ acceptDownloads: true }); const pg = await c.newPage();
+    pg.on('pageerror', e => errs.push(name + ': ' + e.message)); pg.on('dialog', d => d.accept());
+    await pg.addInitScript(() => { delete window.showSaveFilePicker; });   // no storage here: see seedWho
+    return seeded(pg, name);
+  };
+  const save = async (pg, theirs, out) => {
+    await pg.click('[data-e="save"]'); await pg.waitForSelector('#sdlg[open] [data-e="saveGo"]');
+    if (theirs) { await pg.setInputFiles('#theirsFile', theirs); await pg.waitForFunction(() => /✓/.test(document.getElementById('theirsSay').textContent)); }
+    const [d] = await Promise.all([pg.waitForEvent('download'), pg.click('[data-e="saveGo"]')]);
+    await d.saveAs(out);
+    await pg.waitForSelector('#sdlg[open]'); await pg.click('#sdlg footer .btn.pri');   // "now put it back on Teams"
+    return readFileSync(out, 'utf8');
+  };
+  const linksIn = html => JSON.parse(html.match(/<script id="catData" type="application\/json">([\s\S]*?)<\/script>/)[1]);
+  // the name is asked once, before the first edit
+  const n0 = await person(''); await n0.goto('file://' + team0);
+  ok(/Anyone can add, change or delete links/.test(await n0.$eval('#maintBar', e => e.textContent)), 'everyone’s copy offers Edit links');
+  await n0.click('[data-e="toggle"]'); await n0.waitForSelector('#sdlg[open] #wName');
+  await n0.click('[data-e="whoCancel"]');
+  ok(!(await n0.$('[data-e="addLink"]')), 'no name, no editing');
+  await n0.click('[data-e="toggle"]'); await n0.fill('#wName', 'Pat Lee'); await n0.click('[data-e="whoOk"]');
+  ok(!!(await n0.$('[data-e="addLink"]')) && /Editing as Pat Lee/.test(await n0.$eval('#maintBar', e => e.textContent)), 'with a name, editing opens and says who');
+  // A and B open the same copy. A adds a link and changes one; saves.
+  const A = await person('Alex Ames'); await A.goto('file://' + team0); await A.click('[data-e="toggle"]');
+  await A.click('[data-e="addLink"][data-s="trackers"]'); await A.fill('#eName', 'From A'); await A.fill('#eUrl', 'https://a.example.mil/'); await A.click('[data-e="saveLink"]');
+  await A.click('[data-e="editLink"][data-k="c:funds-control-tracker"]'); await A.fill('#eNote', 'A’s note'); await A.click('[data-e="saveLink"]');
+  await A.click('[data-e="editLink"][data-k="c:execution-review-slides"]'); await A.fill('#eNote', 'A says monthly'); await A.click('[data-e="saveLink"]');
+  const fileA = await save(A, null, D + 'fileA.html');
+  // B opened the same copy before A saved: adds a link, deletes one, and changes the same link A changed, differently
+  const B = await person('Blair Bell'); await B.goto('file://' + team0); await B.click('[data-e="toggle"]');
+  await B.click('[data-e="addLink"][data-s="trackers"]'); await B.fill('#eName', 'From B'); await B.fill('#eUrl', 'https://b.example.mil/'); await B.click('[data-e="saveLink"]');
+  await B.click('[data-e="delLink"][data-k="c:office-overview"]');
+  await B.click('[data-e="editLink"][data-k="c:execution-review-slides"]'); await B.fill('#eNote', 'B says weekly'); await B.click('[data-e="saveLink"]');
+  // B chooses A's saved file as the newest copy: nothing of A's is lost
+  const fileB = await save(B, D + 'fileA.html', D + 'fileB.html');
+  const cb = linksIn(fileB), nm = cb.items.map(x => x.name), note = n => (cb.items.find(x => x.name === n) || {}).note;
+  ok(nm.includes('From A') && nm.includes('From B'), 'merge: both people’s new links are in the saved file');
+  ok(note('Funds Control Tracker') === 'A’s note', 'merge: a change only A made is kept');
+  ok(!nm.includes('Office overview'), 'merge: a link only B deleted is gone');
+  ok(note('Execution Review Slides') === 'B says weekly', 'merge: where both changed one link, the person saving keeps theirs');
+  const logW = cb.log.map(e => e.who + ': ' + e.what);
+  ok(logW.some(x => /^Alex Ames: added link “From A”/.test(x)) && logW.some(x => /^Blair Bell: deleted link “Office overview”/.test(x)), 'the change log carries both people’s changes, by name');
+  ok(cb.trash.some(x => x.kind === 'link' && x.rec.name === 'Office overview' && x.who === 'Blair Bell'), 'the deleted link is in Recently deleted, with who deleted it');
+  // without choosing the newest copy, the last save would have lost A's work: show the merge is what saved it
+  ok(!linksIn(readFileSync(team0, 'utf8')).items.some(x => x.name === 'From A'), '(the copy B opened did not have A’s link: the merge brought it)');
+  // C opens B's file: the log and Recently deleted, and a restore
+  const C = await person('Casey Cole'); await C.goto('file://' + D + 'fileB.html'); await C.click('[data-e="toggle"]');
+  await C.click('[data-e="log"]');
+  ok(/Blair Bell/.test(await C.$eval('#sdlg', e => e.textContent)) && /Alex Ames/.test(await C.$eval('#sdlg', e => e.textContent)), 'Change log shows who changed what');
+  await C.click('#sdlg footer .btn.pri');
+  await C.click('[data-e="trash"]'); await C.click('#sdlg [data-e="restore"]'); await C.click('#sdlg footer .btn.pri');
+  ok((await C.$$eval('#main .lrow .cname', a => a.map(x => x.textContent))).includes('Office overview'), 'anyone can restore a deleted link');
+  // D edits an old copy without saving, then opens the newer file: the edits are laid over it, nothing lost
+  const Dp = await person('Dana Diaz'); await Dp.goto('file://' + team0); await Dp.click('[data-e="toggle"]');
+  await Dp.click('[data-e="addLink"][data-s="trackers"]'); await Dp.fill('#eName', 'Draft D'); await Dp.fill('#eUrl', 'https://d.example.mil/'); await Dp.click('[data-e="saveLink"]');
+  await settle(Dp); await Dp.goto('file://' + D + 'fileB.html');
+  const dn = await Dp.$$eval('#main .lrow .cname', a => a.map(x => x.textContent));
+  ok(dn.includes('Draft D') && dn.includes('From A') && dn.includes('From B') && /Unsaved/.test(await Dp.$eval('#maintBar', e => e.textContent)), 'unsaved edits from an older copy are laid over the newer file, and still unsaved');
 }
 console.log('page errors:', errs.length ? errs : 'none'); await b.close();
 if (failed || errs.length) { console.error(failed + ' FAILING, ' + errs.length + ' page error(s)'); process.exit(1); }

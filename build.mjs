@@ -20,7 +20,7 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 const SRC = join(HERE, 'src');
 export const OUT = join(HERE, 'sustainment-dashboard.html');
 export const OUT_MAINT = join(HERE, 'maintainer', 'sustainment-dashboard-maintainer.html');
-const JS_FILES = ['tools.js', 'sources.js', 'maint.js', 'app.js'];
+const JS_FILES = ['tools.js', 'sources.js', 'maint.js', 'edit.js', 'app.js'];   // edit.js: the editor, in every copy
 // fenced: in the maintainer copy only. The team copy is the maintainer copy with every fence cut out (teamOf), and the
 // maintainer page's own Save team copy cuts the same fences the same way, so the two can never drift apart.
 const FENCED = new Set(['sources.js', 'maint.js']);

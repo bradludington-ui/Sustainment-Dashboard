@@ -4,7 +4,7 @@
 // pinned and what was opened lately.
 
 // this program's version: shown in the footer, and written into every file it saves, so a file says which version wrote it
-const VERSION = 'v1.7';
+const VERSION = 'v1.8';
 const STATUS = {
   live:    { label: 'Live',           cls: 'st-live',    order: 0 },
   dev:     { label: 'In development', cls: 'st-dev',     order: 1 },
@@ -91,7 +91,7 @@ const TYPES = {
 function normCatalog(raw) {
   const fixed = [], str = v => (typeof v === 'string' ? v : v == null ? '' : String(v)).trim();
   const out = { meta: {}, categories: [], items: [], notices: [], glossary: [] };
-  const seen = new Set();
+  const seen = new Set(), lids = new Set();
   // the office's settings: who reports and suggestions go to, and when the links were last saved
   const m = raw && raw.meta && typeof raw.meta === 'object' ? raw.meta : {};
   if (str(m.contact)) { if (emailOk(str(m.contact))) out.meta.contact = str(m.contact); else fixed.push('the contact address “' + str(m.contact).slice(0, 60) + '” is not an email address and was set aside'); }
@@ -115,7 +115,10 @@ function normCatalog(raw) {
     // a date (a training session, a board, a deadline): YYYY-MM-DD, or nothing. One that is not a real day is set aside.
     const d = str(c.date);
     if (d && dateOk(d)) it.date = d; else if (d) fixed.push('“' + name + '”: its date “' + d.slice(0, 20) + '” is not a date and was set aside');
-    if (c.id) it.id = str(c.id).toLowerCase().replace(/[^a-z0-9-]+/g, '-');
+    // every link has an id: pins, recently opened and the merge of two people's saves all follow it, however it is renamed
+    let lid = str(c.id).toLowerCase().replace(/[^a-z0-9-]+/g, '-') || name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'link';
+    if (lids.has(lid)) { let n = 2; while (lids.has(lid + '-' + n)) n++; lid += '-' + n; }
+    lids.add(lid); it.id = lid;
     if (str(c.keywords)) it.keywords = str(c.keywords).slice(0, 300);
     const ck = str(c.checked); if (ck && dateOk(ck)) it.checked = ck;
     if (!TYPES[it.type]) { fixed.push('“' + name + '”: type “' + it.type + '” read as Web'); it.type = 'web'; }
@@ -128,6 +131,8 @@ function normCatalog(raw) {
     const text = str(n && n.text).slice(0, 300);
     if (!text) continue;
     const no = { text, date: dateOk(str(n.date)) ? str(n.date) : today() };
+    // an id for the merge: the one it has, or one made from what it says (the same on every copy)
+    no.id = /^[a-z0-9]{2,40}$/i.test(str(n.id)) ? str(n.id) : 'n' + [...(text + no.date)].reduce((h, ch) => (h * 33 ^ ch.charCodeAt(0)) >>> 0, 5381).toString(36);
     if (dateOk(str(n.until))) no.until = str(n.until);
     if (str(n.url)) { if (linkOk(str(n.url))) no.url = str(n.url); else fixed.push('an announcement’s link is not https:// and was set aside'); }
     out.notices.push(no);
@@ -143,6 +148,11 @@ function normCatalog(raw) {
     if (str(g.url)) { if (linkOk(str(g.url))) e.url = str(g.url); else fixed.push('“' + term + '”: its link is not https:// and was set aside'); }
     out.glossary.push(e);
   }
+  // Recently deleted (90 days) and the change log: everyone's, carried in the file
+  out.trash = (raw && Array.isArray(raw.trash) ? raw.trash : []).filter(x => x && typeof x === 'object' && ['link', 'section', 'term', 'notice'].includes(x.kind) && x.rec && typeof x.rec === 'object' && str(x.id) && !isNaN(Date.parse(str(x.t))))
+    .map(x => ({ id: str(x.id).slice(0, 60), t: str(x.t), who: str(x.who).slice(0, 60) || 'someone', kind: x.kind, rec: x.rec, ...(Array.isArray(x.links) ? { links: x.links } : {}) })).slice(-200);
+  out.log = (raw && Array.isArray(raw.log) ? raw.log : []).filter(e => e && !isNaN(Date.parse(str(e.t))) && str(e.what))
+    .map(e => ({ t: str(e.t), who: str(e.who).slice(0, 60) || 'someone', what: str(e.what).slice(0, 200) })).slice(-500);
   out.fixed = fixed;
   return out;
 }
@@ -448,8 +458,8 @@ function draw() {
   // a copy opened from the Downloads folder is a copy someone saved once, and it does not change when the links do
   const path = (() => { try { return decodeURIComponent(location.pathname); } catch { return location.pathname; } })();
   const stale = location.protocol === 'file:' && (/[\\/]downloads[\\/]/i.test(path) || /\(\d+\)\.html?$/i.test(path));
-  document.getElementById('staleNote').innerHTML = stale && !HAS_MAINT ? '<p class="stale" role="note"><b>This is a downloaded copy.</b> It does not change when the links are updated'
-    + (up ? ' (this one is from ' + esc(up) + ')' : '') + '. Open the dashboard from Teams, or bookmark it there, to always see the current links.</p>' : '';
+  document.getElementById('staleNote').innerHTML = stale && !HAS_MAINT ? '<p class="stale" role="note"><b>This is a downloaded copy</b>' + (up ? ', with links as of ' + esc(up) : '')
+    + '. It does not change when someone else updates the dashboard: open it from Teams again to see the latest. If you edit links here, Save, then upload it back to Teams (Help explains).</p>' : '';
   document.getElementById('main').innerHTML = mainHtml() + '<footer class="foot">This page holds no data: it is a list of links. Pins and recently opened are kept in your browser only.' + HOOK('footNote') + ' <span class="ver">Sustainment Dashboard ' + VERSION + '</span></footer>';
 }
 
@@ -492,6 +502,9 @@ function openHelp() {
       + 'The first time, your browser asks whether this page may open Excel: tick “Always allow”. Prefer the browser? Hover over the link and choose Browser.')
     + q('What are the stars and the tiles at the top?', 'Star (☆) any link to pin it. Pinned links are the big tiles at the top of Everything. Pins are kept in your browser, so everyone builds their own set; the × on a tile unpins it.')
     + q('How do I find something fast?', 'Press / anywhere and type. Search covers the tools, every link, their notes and keywords, and the glossary. The tabs narrow it: Files, Websites, Forms, and your service’s own tab.')
+    + q('Can I add or fix a link myself?', 'Yes, anyone can. Press <b>Edit links</b> at the top, type your name once, then use <b>+ Link</b> on a section, or the pencil and bin on a link. Deleted things go to <b>Recently deleted</b>, where anyone can restore them, and the <b>Change log</b> shows who changed what.')
+    + q('How do I save my changes back to Teams?', 'Press <b>Save</b>. If others may have changed the dashboard since you opened it, download it from Teams again and choose it in step 1: your changes are added to theirs, so nobody’s work is lost. Then in Teams: the channel’s <b>Files</b> › <b>Upload</b> › your saved file › <b>Replace</b>.')
+    + q('Is there an easier way to save?', 'Yes: sync the Teams folder once. In Teams, open the channel’s <b>Files</b> and choose <b>Sync</b> (or <b>Add shortcut to OneDrive</b>). The folder then appears in File Explorer. Open the dashboard from there, bookmark it, and Save goes straight back to Teams, merging with anyone else’s changes, with no download or upload.')
     + q('A link does not work, or something is missing.', CATALOG.meta.contact ? 'Use the flag (⚑) on the link to report it, or Suggest a link at the top. Both open an email to ' + esc(CATALOG.meta.contact) + ' with the details filled in.'
       : 'Tell the person who looks after the dashboard.')
     + q('Can I use it on my phone?', 'Not in the Teams phone app, which cannot run a page like this one. Use it on a computer, in Edge or Chrome.')
@@ -508,7 +521,7 @@ function boot() {
     '<header class="top"><h1 class="brand">' + ICONS.hub() + '<span>' + esc(DASH.title) + '</span></h1>'
     + '<div class="tr"><span id="suggestSlot"></span><button type="button" class="tpill" id="helpBtn" aria-haspopup="dialog">' + UI.help + 'Help</button><a class="tpill" href="#pinned">' + UI.pinOn + 'Pinned <b id="pinCount"></b></a>'
     + (HAS_MAINT ? '<button type="button" class="gear" id="gear" aria-haspopup="dialog" title="Settings: latest versions">' + UI.gear + '<span>Settings</span></button>' : '') + '</div></header>'
-    + (HAS_MAINT ? '<div class="maint" id="maintBar"></div>' : '')
+    + '<div class="maint" id="maintBar"></div>'
     + '<div id="staleNote"></div>'
     + '<div class="hero2"><h2>' + greet() + '. What do you need?</h2><p>Every tool, tracker, form and website the office uses, one search away.<span id="updStamp"></span></p>'
     + '<div class="sbox" role="search">' + UI.search + '<label class="vh" for="q">Search the tools and the catalog</label>'
@@ -517,7 +530,7 @@ function boot() {
     + '<main id="main" tabindex="-1"></main>'
     + '<div class="toast" id="toast" role="status" hidden></div>'
     + '<dialog class="sdlg" id="hdlg" aria-labelledby="hdlgT"></dialog>'
-    + (HAS_MAINT ? '<dialog class="sdlg" id="sdlg" aria-labelledby="sdlgT"></dialog>' : '');
+    + '<dialog class="sdlg" id="sdlg" aria-labelledby="sdlgT"></dialog>';
   HOOK('init');
   const q = document.getElementById('q');
   q.addEventListener('input', () => { S.q = q.value.trim(); draw(); });

@@ -47,34 +47,26 @@ the **Recording** type.
 - **Glossary**: the office's terms, A to Z, starting with fifteen (ATR, BTR, CR, FYDP, PPBE, UFR…). Check the wording.
 - **Help**: how the page works, in six questions (up to date? why Excel? pins? search? broken link? phone?).
 
-### Adding, changing and deleting links
+### Anyone can add, change and delete links
 
-In your **maintainer copy** (below), press **Edit catalog**:
+Everyone's copy has **✎ Edit links** at the top. The first time, it asks the person's name (kept in their browser) for
+the change log. Then **+ Link** on a section, the pencil and bin on a link, **+ Add a section**, **+ Announcement**,
+**+ Add a term**, **Paste from Excel…**, **Export to Excel** and **Needs checking**.
 
-- **+ Add link** on a section, or the pencil on a link to change it. Paste the address from Teams or SharePoint
-  (**⋯ › Copy link**); the type is guessed from it. The bin deletes a link; **Undo delete** puts it back.
-- **+ Add a section**; on a section's header, **+ Link**, the pencil (rename, describe, show as a tab, or delete it with
-  its links) and ◀ ▶ to reorder.
-- Every edit is kept in your browser at once, so a closed tab loses nothing; the bar says **Unsaved changes**.
-- **Save** writes your maintainer file. **Save team copy…** writes `sustainment-dashboard.html` with the same links and
-  no editor: upload that one to Teams. A ● on the button means the team copy is out of date.
-- **Paste from Excel…**: copy rows from a spreadsheet (headings Name, Link, and any of Section, Type, Note, Date,
-  Keywords) and paste. It is checked first and says what it will add, update and leave out; a new section is made; a
-  name already in the catalog updates that link. **Export to Excel** writes every link as a spreadsheet (a backup, a
-  review list, a hand-over).
-- **Needs checking** lists links nobody has checked in 180 days, oldest first: open each, press **It works**. A link's
-  box has **I checked this link works today**.
-- **Office settings…**: the contact email reports and suggestions go to (a shared office mailbox outlasts any one person).
-- **+ Announcement** on What's new (with a "show until" date), and **+ Add a term** on the Glossary tab.
-- **Import from last version…** brings your links across from an older copy. A fresh download (never saved) says
-  **New copy** in the bar and offers it first. It shows which version wrote the old file, when it was saved and what it
-  holds, then **Replace with these** (a fresh download) or **Add the ones I don’t have** (keeps what you already typed
-  into the new copy, adds the rest, repeats nothing). Every saved file records the version that wrote it.
+- **Nothing is lost by two people working at once.** **Save** merges: it lays this person's changes over the newest
+  copy, so changes others saved meanwhile are kept. Where two people changed the same link differently, the one saving
+  keeps theirs and is told.
+  - **Opened from Teams (download, edit, put back):** Save asks to choose the newest copy from Teams first (download it
+    again), writes the merged file, then says how to put it back: Files › Upload › Replace.
+  - **Opened from a synced Teams folder** (Teams › Files › Sync, then open it from File Explorer): Save rereads the file
+    itself, merges and writes straight back to Teams. No download, no upload. Help explains how to set it up.
+- **Change log**: who changed what, and when, carried in the file.
+- **Recently deleted**: anything deleted in the last 90 days, with who deleted it; anyone can restore it.
+- **Unsaved edits are never lost**: they are kept in the browser, and if the file has moved on since (someone else
+  saved), opening it lays them over the newer copy.
 
-The links live inside the saved files, not in this repository: `src/catalog.js` is only what a fresh build starts with.
-
-**Keep your maintainer file in OneDrive** (it keeps every version), **export to Excel now and then**, and give a second
-person a copy of the maintainer file: it is the only full record of the catalog.
+Only **your maintainer copy** has the Settings panel (GitHub downloads), **Office settings** (the contact email),
+**Import from last version** and **Save team copy…** (which merges into the team's file the same way).
 
 ## Your maintainer copy: the latest versions
 
@@ -98,7 +90,8 @@ so the panel says what is on Teams.
 | `src/catalog.js` | The starting catalog for a fresh build. Links are edited in the page (Edit catalog). |
 | `src/app.js` | Draws the page from the two lists. |
 | `src/sources.js` | Where each tool's latest version is on GitHub. Maintainer copy only. |
-| `src/maint.js` | The Settings panel and the catalog editor. Maintainer copy only. |
+| `src/maint.js` | The Settings panel. Maintainer copy only. |
+| `src/edit.js` | The editor, the merge, the change log and Recently deleted. In every copy. |
 | `src/style.css` | The look (Harbor, as ORBIT and APEX). |
 | `src/shell.html` | The page around them, with its Content-Security-Policy. |
 | `build.mjs` | Puts the four together into one file. |
