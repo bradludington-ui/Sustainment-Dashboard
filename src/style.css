@@ -322,3 +322,8 @@ ol.steps li{margin:0 0 8px}
 .maint.team .mb.pri{background:var(--acc);border-color:var(--acc);color:var(--onAcc)}
 .maint.team .mb.pri:hover{background:var(--accHover);color:#fff}
 .maint.team .mb.pri[aria-disabled=true]{background:var(--spanel2);border-color:var(--sline);color:var(--smut)}
+/* a tool's link is changed from the Everything tab's tools row while editing: the pencil sits on the tile's corner */
+.ttw{position:relative}
+.ttw .ttile{height:100%;box-sizing:border-box;padding-right:44px}
+.ttw .ttedit{position:absolute;top:10px;right:8px;background:var(--card);border:1px solid var(--cardLine)}
+

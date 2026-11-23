@@ -21,7 +21,7 @@ const ED = { on: false, fileSig: '', teamSig: '', dirty: false, undo: null, base
 const IS_MAINT = () => typeof openSettings === 'function';
 // every part of a catalog that is written to a file. sigOf leaves out the stamp and version Save writes, so saving one
 // copy never makes another read as changed.
-const catOut = cat => ({ meta: cat.meta || {}, categories: cat.categories, items: cat.items, notices: cat.notices || [], glossary: cat.glossary || [], trash: cat.trash || [], log: cat.log || [] });
+const catOut = cat => ({ meta: cat.meta || {}, categories: cat.categories, items: cat.items, notices: cat.notices || [], glossary: cat.glossary || [], tools: cat.tools || [], trash: cat.trash || [], log: cat.log || [] });
 const sigOf = cat => { const o = catOut(cat), m = { ...o.meta }; delete m.updated; delete m.version; const j = JSON.stringify({ ...o, meta: m }); let h = 5381; for (let i = 0; i < j.length; i++) h = ((h * 33) ^ j.charCodeAt(i)) >>> 0; return j.length + '.' + h.toString(36); };
 const plainOf = cat => JSON.parse(JSON.stringify(catOut(cat)));
 const plainCat = () => plainOf(CATALOG);
@@ -81,6 +81,7 @@ function merge3(B, M, T) {
   out.items = merge3list(B.items, M.items, T.items, c => ckey(c), c => 'link “' + c.name + '”', conflicts);
   out.glossary = merge3list(B.glossary, M.glossary, T.glossary, g => g.term.toLowerCase(), g => 'term “' + g.term + '”', conflicts);
   out.notices = merge3list(B.notices, M.notices, T.notices, n => n.id, n => 'announcement “' + n.text.slice(0, 40) + '”', conflicts);
+  out.tools = merge3list(B.tools, M.tools, T.tools, x => x.id, x => 'the link to ' + toolName(x.id), conflicts);
   out.trash = merge3list(B.trash, M.trash, T.trash, x => x.id, () => 'a deleted item', []);
   for (const f of new Set(Object.keys(M.meta || {}).concat(Object.keys(T.meta || {})))) {
     const vb = (B.meta || {})[f], vm = (M.meta || {})[f], vt = (T.meta || {})[f];
@@ -105,6 +106,7 @@ function describe(B, M) {
   run(B.items, M.items, c => ckey(c), 'link', c => c.name);
   run(B.glossary, M.glossary, g => g.term.toLowerCase(), 'term', g => g.term);
   run(B.notices, M.notices, n => n.id, 'announcement', n => n.text.slice(0, 50));
+  run(B.tools, M.tools, x => x.id, 'the link to', x => toolName(x.id));
   const mb = { ...B.meta }, mm = { ...M.meta }; for (const o of [mb, mm]) { delete o.updated; delete o.version; }
   if (!same(mb, mm)) out.push('changed the office settings');
   if (!same((B.categories || []).map(k => k.id), (M.categories || []).map(k => k.id)) && !out.some(x => / section /.test(x))) out.push('reordered the sections');
@@ -339,8 +341,8 @@ function linkForm(key, presetCat) {
   dlg('<header><h2 id="sdlgT">' + (c ? 'Change a link' : 'Add a link') + '</h2><button type="button" class="x" data-e="close" aria-label="Close">×</button></header>'
     + '<div class="eform">'
     + field('eName', 'Name', '<input id="eName" maxlength="120" value="' + esc(v.name) + '" autocomplete="off">')
-    + field('eUrl', 'Link', '<input id="eUrl" type="url" maxlength="2000" placeholder="https://…" value="' + esc(v.url) + '" autocomplete="off">',
-      'In Teams or SharePoint: the file’s ⋯ menu › Copy link. Leave it empty if you do not have it yet.')
+    + field('eUrl', 'Link', '<input id="eUrl" type="text" inputmode="url" spellcheck="false" maxlength="2000" placeholder="https://… or \\\\server\\share\\…" value="' + esc(v.url) + '" autocomplete="off">',
+      'In Teams or SharePoint: the file’s ⋯ menu › Copy link. A network path (\\\\server\\share\\…, S:\\…) works too. Leave it empty if you do not have it yet.')
     + '<div class="erow">' + field('eCat', 'Section', '<select id="eCat">' + catOpts + '</select>')
     + field('eType', 'Type', '<select id="eType">' + typeOpts + '</select>', 'Excel, PowerPoint and Word open in the desktop app.') + '</div>'
     + '<div class="erow">' + field('eNote', 'Note', '<input id="eNote" maxlength="200" value="' + esc(v.note) + '" placeholder="What it is, who owns it; for a session, its topic (optional)" autocomplete="off">')
@@ -359,10 +361,39 @@ function linkForm(key, presetCat) {
   const share = () => {   // a sharing link (…/:x:/…) may open the browser even from "Open in Excel"; say so where it matters
     const h = document.getElementById('eUrl-h'), office = ['excel', 'powerpoint', 'word'].includes(type.value);
     h.textContent = office && /\/:[xpw]:\//i.test(url.value) ? 'This is a sharing link. If “Open in ' + TYPES[type.value].appName + '” opens the browser instead, use the file’s own address (in SharePoint: the file’s details › Path, or Open in app and copy it from the app).'
-      : 'In Teams or SharePoint: the file’s ⋯ menu › Copy link. Leave it empty if you do not have it yet.';
+      : 'In Teams or SharePoint: the file’s ⋯ menu › Copy link. A network path (\\\\server\\share\\…, S:\\…) works too. Leave it empty if you do not have it yet.';
   };
   url.addEventListener('input', () => { if (!typed) { const g = guessType(url.value); if (g) type.value = g; } share(); });
   type.addEventListener('change', share); share();
+}
+// ---- a tool's link (ORBIT, APEX and the rest): typed here, kept in the file, winning over the tool list's own
+const toolName = id => ((DASH.tools || []).find(t => t.id === id) || { name: id }).name;
+function toolForm(id) {
+  const t = (DASH.tools || []).find(x => x.id === id); if (!t) return;
+  const o = (CATALOG.tools || []).find(x => x.id === id), cur = o ? o.url : t.url;
+  dlg('<header><h2 id="sdlgT">Link to ' + esc(t.name) + '</h2><button type="button" class="x" data-e="close" aria-label="Close">×</button></header>'
+    + '<div class="eform">'
+    + field('tUrl', 'Address', '<input id="tUrl" type="text" inputmode="url" spellcheck="false" maxlength="2000" placeholder="https://… or \\\\server\\share\\' + esc(t.name) + '.html" value="' + esc(cur) + '" autocomplete="off">',
+      'Where ' + esc(t.name) + ' is kept: ' + esc(LINK_HELP) + '. Leave it empty if it has no home yet.')
+    + '<p class="eh" id="tTry"></p><p class="eerr" id="tErr" role="alert"></p></div>'
+    + '<footer>' + (o && t.url ? '<button type="button" class="btn" data-e="toolDefault" data-k="' + esc(id) + '">Use the built-in link</button>' : '')
+    + '<span class="sp"></span><button type="button" class="btn" data-e="close">Cancel</button>'
+    + '<button type="button" class="btn pri" data-e="saveTool" data-k="' + esc(id) + '">Save link</button></footer>', '#tUrl');
+  const u = document.getElementById('tUrl'), tr = document.getElementById('tTry');
+  const show = () => { const h = linkHref(u.value); tr.innerHTML = h ? '<a href="' + esc(h) + '" target="_blank" rel="noopener noreferrer">Try it</a> (opens in a new tab)' + (isWeb(u.value) ? '' : ' · a network path opens when the dashboard itself is opened from the network or this computer; a browser may refuse it from a Teams or SharePoint page') : ''; };
+  u.addEventListener('input', show); show();
+}
+function saveTool(id, useDefault) {
+  const t = (DASH.tools || []).find(x => x.id === id); if (!t) return;
+  const L = (CATALOG.tools || []).filter(x => x.id !== id);
+  if (!useDefault) {
+    const url = document.getElementById('tUrl').value.trim(), err = document.getElementById('tErr');
+    if (url && !linkOk(url)) { err.textContent = 'That address cannot be opened. Use ' + LINK_HELP + '.'; document.getElementById('tUrl').focus(); return; }
+    if (url !== t.url) L.push({ id, url });   // the same as the tool list's own: nothing to keep
+  }
+  CATALOG.tools = L.sort((a, b) => (DASH.tools || []).findIndex(x => x.id === a.id) - (DASH.tools || []).findIndex(x => x.id === b.id));
+  dlgClose(); edKeep();
+  toast('Link to ' + t.name + ' changed (not saved yet)');
 }
 function guessType(u) {
   u = String(u).toLowerCase();
@@ -379,7 +410,7 @@ function saveLink(key) {
   const g = id => document.getElementById(id).value.trim(), err = document.getElementById('eErr');
   const name = g('eName'), url = g('eUrl');
   if (!name) { err.textContent = 'Give the link a name.'; document.getElementById('eName').focus(); return; }
-  if (url && !linkOk(url)) { err.textContent = 'The link must start with https:// (copy it from the file’s ⋯ menu › Copy link).'; document.getElementById('eUrl').focus(); return; }
+  if (url && !linkOk(url)) { err.textContent = 'That link cannot be opened. Use ' + LINK_HELP + ' (in Teams: the file’s ⋯ menu › Copy link).'; document.getElementById('eUrl').focus(); return; }
   const others = citems().filter(x => ckey(x) !== key);
   if (others.some(x => x.name.toLowerCase() === name.toLowerCase())) { err.textContent = 'Another link already has that name. Give this one a name of its own.'; document.getElementById('eName').focus(); return; }
   const rec = { name, note: g('eNote'), category: g('eCat'), type: g('eType'), url };
@@ -501,7 +532,8 @@ function importMerge(cat, dry) {
   const terms = cat.glossary.filter(g => !has(CATALOG.glossary || [], 'term', g.term));
   const news = cat.notices.filter(x => !has(CATALOG.notices || [], 'text', x.text));
   const n = (x, w) => x + ' ' + w + (x === 1 ? '' : 's');
-  if (dry) return [n(links.length, 'link'), n(secs.length, 'section'), n(terms.length, 'term'), n(news.length, 'announcement')].join(', ');
+  const tset0 = new Set((CATALOG.tools || []).map(x => x.id)), tn = (cat.tools || []).filter(x => !tset0.has(x.id)).length;
+  if (dry) return [n(links.length, 'link'), n(secs.length, 'section'), n(terms.length, 'term'), n(news.length, 'announcement'), n(tn, 'tool link')].join(', ');
   const ids = new Set(cats().map(k => k.id));
   for (const k of secs) { const nk = { ...k }; if (ids.has(nk.id)) nk.id = slugId(nk.name, ids); ids.add(nk.id); CATALOG.categories.push(nk); }
   // a link keeps its section by the section's NAME, which is what both copies agree on
@@ -517,11 +549,14 @@ function importMerge(cat, dry) {
   CATALOG.notices = (CATALOG.notices || []).concat(news);
   if (!CATALOG.meta.contact && cat.meta.contact) CATALOG.meta.contact = cat.meta.contact;
   if (!CATALOG.meta.office && cat.meta.office) CATALOG.meta.office = cat.meta.office;
-  return links.length + secs.length + terms.length + news.length;
+  // a tool link this copy has not set comes across from the other
+  const tset = new Set((CATALOG.tools || []).map(x => x.id)), tnew = (cat.tools || []).filter(x => !tset.has(x.id));
+  CATALOG.tools = (CATALOG.tools || []).concat(tnew);
+  return links.length + secs.length + terms.length + news.length + tnew.length;
 }
 function importReplace() {
   const c = IMP.cat, keepVer = CATALOG.meta.version;
-  CATALOG = { meta: { ...c.meta }, categories: c.categories, items: c.items, notices: c.notices, glossary: c.glossary, fixed: c.fixed };
+  CATALOG = { meta: { ...c.meta }, categories: c.categories, items: c.items, notices: c.notices, glossary: c.glossary, tools: c.tools, fixed: c.fixed };
   // what this page's file says it is stays as it is until it is saved: the version and stamp belong to the file written
   delete CATALOG.meta.updated; delete CATALOG.meta.version; if (keepVer) CATALOG.meta.version = keepVer;
   dlgClose(); ED.undo = null; edKeep();
@@ -571,6 +606,9 @@ const MAINT_HOOKS = {
         case 'editLink': linkForm(k); break;
         case 'delLink': if (confirm('Delete “' + (citems().find(x => ckey(x) === k) || {}).name + '”?')) delLink(k); break;
         case 'saveLink': saveLink(k); break;
+        case 'editTool': toolForm(k); break;
+        case 'saveTool': saveTool(k, false); break;
+        case 'toolDefault': saveTool(k, true); break;
         case 'addSection': sectionForm(''); break;
         case 'editSection': sectionForm(sId); break;
         case 'delSection': delSection(sId); break;
@@ -647,6 +685,10 @@ const MAINT_HOOKS = {
     return '<button type="button" class="lic ed" data-e="editLink" data-k="' + esc(k) + '" title="Change" aria-label="Change ' + esc(c.name) + '">' + UI.edit + '</button>'
       + '<button type="button" class="lic ed danger" data-e="delLink" data-k="' + esc(k) + '" title="Delete" aria-label="Delete ' + esc(c.name) + '">' + UI.trash + '</button>';
   },
+  toolActs(t) {
+    if (!ED.on) return '';
+    return '<button type="button" class="lic ed ttedit" data-e="editTool" data-k="' + esc(t.id) + '" title="Change the link" aria-label="Change the link to ' + esc(t.name) + '">' + UI.edit + '</button>';
+  },
   sectionActs(g) {
     if (!ED.on) return '';
     const i = cats().findIndex(k => k.id === g.id);
@@ -660,7 +702,7 @@ const MAINT_HOOKS = {
   glossFoot: () => ED.on ? '<div class="addsec top"><button type="button" class="btn" data-e="addTerm">+ Add a term</button></div>' : '',
   termActs: g => ED.on ? ' <button type="button" class="lic ed" data-e="editTerm" data-t="' + esc(g.term) + '" aria-label="Change ' + esc(g.term) + '">' + UI.edit + '</button><button type="button" class="lic ed danger" data-e="delTerm" data-t="' + esc(g.term) + '" aria-label="Delete ' + esc(g.term) + '">' + UI.trash + '</button>' : '',
   // a new section joins the Everything tab; take the person there so they see it arrive
-  footNote: () => IS_MAINT() ? ' Tools are listed in src/tools.js; links are edited here, with Edit catalog.' : '',
+  footNote: () => IS_MAINT() ? ' Tools are listed in src/tools.js; their links and the catalog are edited here, with Edit catalog.' : '',
 };
 
 
@@ -768,7 +810,7 @@ function pasteCheck(apply) {
     const n = (hasHead ? i + 2 : i + 1), get = k => (col[k] === undefined ? '' : (r[col[k]] || ''));
     const name = get('name'), url = get('url'), secName = get('section'), tv = get('type'), date = pasteDate(get('date'));
     if (!name) { errs.push('row ' + n + ': no name'); return; }
-    if (url && !linkOk(url)) { errs.push('row ' + n + ' (' + name + '): the link must start with https://'); return; }
+    if (url && !linkOk(url)) { errs.push('row ' + n + ' (' + name + '): the link cannot be opened (use ' + LINK_HELP + ')'); return; }
     if (date === null) { errs.push('row ' + n + ' (' + name + '): “' + get('date') + '” is not a date'); return; }
     let type = tv ? typeOf(tv) : (guessType(url) || 'web');
     if (!type) { errs.push('row ' + n + ' (' + name + '): type “' + tv + '” is not one of ' + Object.values(TYPES).map(t => t.label).join(', ')); return; }
@@ -813,7 +855,7 @@ function newsForm(i) {
   const n = i >= 0 ? CATALOG.notices[i] : { text: '', date: today(), until: '', url: '' };
   dlg('<header><h2 id="sdlgT">' + (i >= 0 ? 'Change an announcement' : 'Add an announcement') + '</h2><button type="button" class="x" data-e="close" aria-label="Close">×</button></header><div class="eform">'
     + field('nText', 'Announcement', '<textarea id="nText" rows="3" maxlength="300">' + esc(n.text) + '</textarea>')
-    + field('nUrl', 'Link', '<input id="nUrl" type="url" maxlength="2000" placeholder="https://… (optional)" value="' + esc(n.url || '') + '" autocomplete="off">')
+    + field('nUrl', 'Link', '<input id="nUrl" type="text" inputmode="url" spellcheck="false" maxlength="2000" placeholder="https://… (optional)" value="' + esc(n.url || '') + '" autocomplete="off">')
     + '<div class="erow">' + field('nDate', 'Posted', '<input id="nDate" type="date" value="' + esc(n.date) + '">') + field('nUntil', 'Show until', '<input id="nUntil" type="date" value="' + esc(n.until || '') + '">', 'Empty: until you delete it.') + '</div>'
     + '<p class="eerr" id="eErr" role="alert"></p></div><footer>' + '<span class="sp"></span><button type="button" class="btn" data-e="close">Cancel</button>'
     + '<button type="button" class="btn pri" data-e="saveNews" data-i="' + i + '">' + (i >= 0 ? 'Save changes' : 'Add announcement') + '</button></footer>', '#nText');
@@ -824,7 +866,7 @@ function saveNews(i) {
   if (!n.text) { err.textContent = 'Write the announcement.'; return; }
   if (!dateOk(n.date) || (v('nUntil') && !dateOk(v('nUntil')))) { err.textContent = 'Pick the dates from the calendar.'; return; }
   if (v('nUntil')) { if (v('nUntil') < n.date) { err.textContent = '“Show until” is before the day it is posted.'; return; } n.until = v('nUntil'); }
-  if (v('nUrl')) { if (!linkOk(v('nUrl'))) { err.textContent = 'The link must start with https://.'; return; } n.url = v('nUrl'); }
+  if (v('nUrl')) { if (!linkOk(v('nUrl'))) { err.textContent = 'That link cannot be opened. Use ' + LINK_HELP + '.'; return; } n.url = v('nUrl'); }
   CATALOG.notices = CATALOG.notices || [];
   n.id = i >= 0 ? CATALOG.notices[i].id : 'n' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
   if (i >= 0) CATALOG.notices[i] = n; else CATALOG.notices.push(n);
@@ -841,7 +883,7 @@ function termForm(term) {
   dlg('<header><h2 id="sdlgT">' + (term ? 'Change a term' : 'Add a term') + '</h2><button type="button" class="x" data-e="close" aria-label="Close">×</button></header><div class="eform">'
     + field('gTerm', 'Term', '<input id="gTerm" maxlength="60" value="' + esc(g.term) + '" placeholder="UFR" autocomplete="off">')
     + field('gMean', 'What it means', '<textarea id="gMean" rows="4" maxlength="600" placeholder="Unfunded Requirement: …">' + esc(g.meaning) + '</textarea>')
-    + field('gUrl', 'Read more', '<input id="gUrl" type="url" maxlength="2000" placeholder="https://… (optional)" value="' + esc(g.url || '') + '" autocomplete="off">')
+    + field('gUrl', 'Read more', '<input id="gUrl" type="text" inputmode="url" spellcheck="false" maxlength="2000" placeholder="https://… (optional)" value="' + esc(g.url || '') + '" autocomplete="off">')
     + '<p class="eerr" id="eErr" role="alert"></p></div><footer><span class="sp"></span><button type="button" class="btn" data-e="close">Cancel</button>'
     + '<button type="button" class="btn pri" data-e="saveTerm" data-t="' + esc(term) + '">' + (term ? 'Save changes' : 'Add term') + '</button></footer>', '#gTerm');
 }
@@ -850,7 +892,7 @@ function saveTerm(old) {
   const e = { term: v('gTerm'), meaning: v('gMean') };
   if (!e.term || !e.meaning) { err.textContent = 'Give the term and what it means.'; return; }
   if (glossary().some(x => x.term !== old && x.term.toLowerCase() === e.term.toLowerCase())) { err.textContent = 'That term is already in the glossary.'; return; }
-  if (v('gUrl')) { if (!linkOk(v('gUrl'))) { err.textContent = 'The link must start with https://.'; return; } e.url = v('gUrl'); }
+  if (v('gUrl')) { if (!linkOk(v('gUrl'))) { err.textContent = 'That link cannot be opened. Use ' + LINK_HELP + '.'; return; } e.url = v('gUrl'); }
   CATALOG.glossary = CATALOG.glossary || [];
   const i = CATALOG.glossary.findIndex(x => x.term === old);
   if (old && i >= 0) CATALOG.glossary[i] = e; else CATALOG.glossary.push(e);

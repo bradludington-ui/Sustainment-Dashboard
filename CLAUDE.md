@@ -43,6 +43,13 @@ dashboard, and more). See README.md for what it is and how it is updated.
   page's own Save team copy and the build cannot drift apart. A fence marker never appears literally in a source file
   (build it from pieces): a cut that met its own marker would eat the code doing the cutting. Every `<` in the catalog
   block is written `\u003c`, so a link or note holding `</script>` cannot end the block.
+- **A link is a web address or a network path (v1.9, Brad, 23 Nov 2026: "update the link to APEX, ORBIT, and the
+  other hot links").** `linkHref()` in app.js is the one reading: https/http and `file://` as written, `\\server\share\…`
+  and `S:\…` turned into `file://`, anything else '' ("not set"); `linkOk` is `linkHref() !== ''`, and every `href` drawn
+  goes through it. A link is stored as typed. `tools.js` stays https-only (`npm run check`); a tool's link set in the page
+  is `catalog.tools` (`[{id, url}]`, in `normCatalog`, `catOut`, `merge3`, `describe`, `importMerge`), read by `tools()`,
+  so it wins everywhere the tool is drawn. Office's `ms-excel:ofe|u|` form is for web addresses only: a network file
+  opens as itself.
 - **The editor plugs in through `HOOK()`** in app.js (`MAINT_HOOKS`, defined in edit.js). Maintainer-only behaviour
   checks `IS_MAINT()` inside edit.js; app.js stays free of editing code.
 - **Office links open in the desktop app** through Office's own form (`ms-excel:ofe|u|<https address>`, and

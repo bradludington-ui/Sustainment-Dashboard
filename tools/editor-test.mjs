@@ -314,6 +314,32 @@ ok((await r2.$$eval('#main .scard h3', a => a.map(x => x.textContent))).filter(x
   await settle(Dp); await Dp.goto('file://' + D + 'fileB.html');
   const dn = await Dp.$$eval('#main .lrow .cname', a => a.map(x => x.textContent));
   ok(dn.includes('Draft D') && dn.includes('From A') && dn.includes('From B') && /Unsaved/.test(await Dp.$eval('#maintBar', e => e.textContent)), 'unsaved edits from an older copy are laid over the newer file, and still unsaved');
+  // TOOL LINKS (Brad, 23 Nov 2026): anyone sets the link to ORBIT, APEX and the rest, from the tools row while editing,
+  // as a web address or a network path; it is kept in the file, merged like any link, and opens from the cards
+  const E = await person('Eli Ford'); await E.goto('file://' + team0);
+  ok(!(await E.$('[data-e="editTool"]')), 'tool links: no pencil until editing');
+  ok(await E.$eval('.ttile.off', e => /APEX|ORBIT/.test(e.textContent)), 'tool links: a tool with no link shows as not set');
+  await E.click('[data-e="toggle"]');
+  await E.click('[data-e="editTool"][data-k="apex"]');
+  await E.fill('#tUrl', 'javascript:alert(1)'); await E.click('[data-e="saveTool"]');
+  ok(/cannot be opened/.test(await E.$eval('#tErr', e => e.textContent)), 'tool links: an address that cannot be opened is refused');
+  await E.fill('#tUrl', '\\\\srv01\\Budget Share\\APEX.html');
+  ok(await E.$eval('#tTry a', a => a.getAttribute('href')) === 'file://srv01/Budget%20Share/APEX.html', 'tool links: a network path is offered to try, as a file address');
+  await E.click('[data-e="saveTool"]');
+  await E.click('[data-e="editTool"][data-k="orbit"]'); await E.fill('#tUrl', 'https://orbit.example.mil/board.html'); await E.click('[data-e="saveTool"]');
+  ok(await E.$eval('a.ttile[data-open="apex"]', a => a.getAttribute('href')) === 'file://srv01/Budget%20Share/APEX.html', 'tool links: the APEX tile opens the network path');
+  const fileE = await save(E, null, D + 'fileE.html'), ce = linksIn(fileE);
+  ok(JSON.stringify(ce.tools) === JSON.stringify([{ id: 'orbit', url: 'https://orbit.example.mil/board.html' }, { id: 'apex', url: '\\\\srv01\\Budget Share\\APEX.html' }]), 'tool links: kept in the saved file, as typed', JSON.stringify(ce.tools));
+  ok(ce.log.some(x => /Eli Ford: changed the link to APEX|added the link to “APEX”/.test(x.who + ': ' + x.what)), 'tool links: the change log says who set the APEX link');
+  // F opened the same copy before E saved and sets ORBIT differently; she chooses E's file as the newest: E's APEX stays
+  const F = await person('Fran Gale'); await F.goto('file://' + team0); await F.click('[data-e="toggle"]');
+  await F.click('[data-e="editTool"][data-k="orbit"]'); await F.fill('#tUrl', 'S:\\Budget\\ORBIT.html'); await F.click('[data-e="saveTool"]');
+  const cf = linksIn(await save(F, D + 'fileE.html', D + 'fileF.html')), tl = Object.fromEntries(cf.tools.map(x => [x.id, x.url]));
+  ok(tl.apex === '\\\\srv01\\Budget Share\\APEX.html' && tl.orbit === 'S:\\Budget\\ORBIT.html', 'tool links: merge keeps E’s APEX and F’s ORBIT', JSON.stringify(tl));
+  // the saved file opened fresh: the cards open what was typed
+  const G = await person('Gus Hale'); await G.goto('file://' + D + 'fileF.html'); await G.click('.tabs [data-tab="tools"]');
+  ok(await G.$eval('a.btn.pri[data-open="orbit"]', a => a.getAttribute('href')) === 'file:///S:/Budget/ORBIT.html', 'tool links: the ORBIT card opens the drive path');
+  ok(!/github/i.test(readFileSync(D + 'fileF.html', 'utf8')), 'tool links: the team copy still says nothing of GitHub');
 }
 console.log('page errors:', errs.length ? errs : 'none'); await b.close();
 if (failed || errs.length) { console.error(failed + ' FAILING, ' + errs.length + ' page error(s)'); process.exit(1); }
