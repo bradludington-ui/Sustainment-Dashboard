@@ -28,8 +28,9 @@ dashboard, and more). See README.md for what it is and how it is updated.
   delete"). It is a JSON block, `<script id="catData">`, read by `readCatalog()` → `normCatalog()` (the one reading of a
   catalog, also used by Import and the merge).
 - **Anyone edits (Brad, 23 Nov 2026: "I want the ability for anyone using to be able to update the links").** The
-  editor is `src/edit.js`, in EVERY copy; only the Settings panel (`maint.js`, `sources.js`) is fenced. Office settings,
-  Import from last version and Save team copy are the maintainer's (`IS_MAINT()`). The team opens the file from Teams
+  editor is `src/edit.js`, in EVERY copy; only the Settings panel (`maint.js`, `sources.js`) is fenced. Office settings
+  and Save team copy are the maintainer's (`IS_MAINT()`); Import is in both (Brad, 23 Nov 2026: "Add import to the team
+  copy too"), and its Replace puts every link it removes into `trash` and keeps both logs, so a wrong file loses nothing. The team opens the file from Teams
   and saves it back (Brad: "It does not synch"), so the last save must never wipe out the others: **Save merges**
   (`merge3`: base = the catalog this page started from, `ED.base`; mine; theirs = the file reread, or the newest copy
   the person chooses). Only-mine changes are mine, only-theirs are kept, both-different keeps mine and says so. Every

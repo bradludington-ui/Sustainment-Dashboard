@@ -308,6 +308,21 @@ ok((await r2.$$eval('#main .scard h3', a => a.map(x => x.textContent))).filter(x
   await C.click('#sdlg footer .btn.pri');
   await C.click('[data-e="trash"]'); await C.click('#sdlg [data-e="restore"]'); await C.click('#sdlg footer .btn.pri');
   ok((await C.$$eval('#main .lrow .cname', a => a.map(x => x.textContent))).includes('Office overview'), 'anyone can restore a deleted link');
+  // the team copy imports too: Casey replaces with an OLDER copy by mistake, and nothing is lost
+  ok(!!(await C.$('.maint [data-e="import"]')), 'the team copy offers Import from another copy while editing');
+  const logBefore = (await C.evaluate(() => CATALOG.log.length));
+  await C.setInputFiles('#impFile', team0); await C.waitForSelector('#sdlg[open] [data-e="impReplace"]');
+  ok(/Import from another copy/.test(await C.$eval('#sdlg', e => e.textContent)), 'the team copy’s import box says what it is');
+  await C.click('[data-e="impReplace"]');
+  const cn = await C.$$eval('#main .lrow .cname', a => a.map(x => x.textContent));
+  const tr = await C.evaluate(() => CATALOG.trash.filter(x => x.kind === 'link').map(x => x.rec.name));
+  ok(!cn.includes('From A') && tr.includes('From A') && tr.includes('From B'), 'Replace with an older copy: links it lacks go to Recently deleted');
+  ok((await C.evaluate(() => CATALOG.log.length)) >= logBefore, 'Replace keeps the change log');
+  await C.click('[data-e="trash"]'); await C.click('#sdlg li:has-text("From A") [data-e="restore"]'); await C.click('#sdlg footer .btn.pri');
+  ok((await C.$$eval('#main .lrow .cname', a => a.map(x => x.textContent))).includes('From A'), 'a link a Replace removed can be restored');
+  await C.setInputFiles('#impFile', D + 'fileB.html'); await C.waitForSelector('#sdlg[open] [data-e="impMerge"]'); await C.click('[data-e="impMerge"]');
+  const cm = await C.$$eval('#main .lrow .cname', a => a.map(x => x.textContent));
+  ok(cm.includes('From B') && cm.filter(x => x === 'From A').length === 1, 'Add the ones I don’t have brings the rest back, once each');
   // D edits an old copy without saving, then opens the newer file: the edits are laid over it, nothing lost
   const Dp = await person('Dana Diaz'); await Dp.goto('file://' + team0); await Dp.click('[data-e="toggle"]');
   await Dp.click('[data-e="addLink"][data-s="trackers"]'); await Dp.fill('#eName', 'Draft D'); await Dp.fill('#eUrl', 'https://d.example.mil/'); await Dp.click('[data-e="saveLink"]');

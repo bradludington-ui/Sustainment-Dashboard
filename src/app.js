@@ -4,7 +4,7 @@
 // pinned and what was opened lately.
 
 // this program's version: shown in the footer, and written into every file it saves, so a file says which version wrote it
-const VERSION = 'v1.9';
+const VERSION = 'v1.10';
 const STATUS = {
   live:    { label: 'Live',           cls: 'st-live',    order: 0 },
   dev:     { label: 'In development', cls: 'st-dev',     order: 1 },
