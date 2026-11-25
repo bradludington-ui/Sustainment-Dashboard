@@ -88,9 +88,9 @@ const fl = await q.$$eval('#main .lrow .cname', a => a.map(x => x.textContent));
 ok(fl.includes('Tracker X') && !fl.includes('DTS'), 'Files tab shows files, not websites');
 await q.click('.tabs [data-tab="web"]');
 ok((await q.$$eval('#main .lrow .cname', a => a.map(x => x.textContent))).includes('DTS'), 'Websites tab shows websites');
-await q.click('.tabs [data-tab="all"]'); await q.fill('#q', 'pay'); await q.dispatchEvent('#q', 'input');
+await q.click('.tabs [data-tab="all"]'); await q.fill('#q', 'pay'); await q.press('#q', 'Enter');
 ok((await q.$$eval('#main .lrow .cname', a => a.map(x => x.textContent))).some(t => /myPay/.test(t)), 'search finds a link from Everything');
-await q.fill('#q', 'orbit'); await q.dispatchEvent('#q', 'input');
+await q.fill('#q', 'orbit'); await q.press('#q', 'Enter');
 ok((await q.$$eval('#main .ttile b', a => a.map(x => x.textContent))).some(t => /ORBIT/.test(t)), 'search finds a tool');
 await q.fill('#q', ''); await q.dispatchEvent('#q', 'input');
 await q.click('.lrow [data-pin="c:dts"]');
@@ -147,7 +147,7 @@ ok((await r2.$$eval('#main .scard h3', a => a.map(x => x.textContent))).filter(x
   ok(JSON.stringify(await part('sc-past')) === JSON.stringify(['CR cash needs', 'Spend plan basics']), 'Training tab: past sessions, newest first');
   ok(await t.$eval('section:has(> header #sc-past) .lrow:first-child .ldate', e => /\d{4}$/.test(e.textContent)), 'a session shows its date');
   ok((await t.$$eval('section:has(> header #sc-past) .lrow .ctype', a => a.map(x => x.title))).includes('Recording'), 'a Stream link is guessed as a Recording');
-  await t.click('.tabs [data-tab="all"]'); await t.fill('#q', 'cash windows'); await t.dispatchEvent('#q', 'input');
+  await t.click('.tabs [data-tab="all"]'); await t.fill('#q', 'cash windows'); await t.press('#q', 'Enter');
   ok((await t.$$eval('#main .lrow .cname', a => a.map(x => x.textContent))).includes('CR cash needs'), 'search finds a session by its topic');
   await t.fill('#q', ''); await t.dispatchEvent('#q', 'input');
   await t.click('.tabs [data-tab="files"]');
@@ -220,14 +220,22 @@ ok((await r2.$$eval('#main .scard h3', a => a.map(x => x.textContent))).filter(x
   ok(!(await t.$eval('#staleNote', e => e.textContent)), 'no downloaded-copy note when opened from its own place');
   const sug = await t.$eval('#suggestSlot a', a => a.getAttribute('href'));
   ok(sug.startsWith('mailto:office.box@example.mil?subject=Suggestion'), 'Suggest a link emails the office contact');
+  // a row's controls are drawn when it is reached: none before, all after hovering it, and on keyboard focus too
+  ok(await t.$eval('.lrow:has(.cname:text-is("TSP")) .lmore', e => e.innerHTML === ''), 'a row’s Browser, Copy and Report are not drawn until the row is reached');
+  await t.hover('.lrow:has(.cname:text-is("TSP"))');
   const rep = await t.$eval('a[aria-label="Report a broken link: TSP"]', a => decodeURIComponent(a.getAttribute('href')));
   ok(rep.startsWith('mailto:office.box@example.mil?') && rep.includes('“TSP”') && rep.includes('https://www.tsp.gov/'), 'the flag on a link emails a report naming it and its address');
   const newsTxt = await t.$eval('.news', e => e.textContent);
   ok(newsTxt.includes('Closeout guidance is out') && !newsTxt.includes('An old notice'), 'What’s new shows the announcement, not the ended one');
   ok(newsTxt.includes('SFCB board') || !(iso(30) >= '2026-12-15' && iso(0) <= '2026-12-15'), 'Coming up lists a dated link in the next 30 days');
-  await t.fill('#q', 'interdepartmental'); await t.dispatchEvent('#q', 'input');
+  await t.focus('.lrow:has(.cname:text-is("DD 448")) .cname'); await t.keyboard.press('Tab');
+  ok(/Copy the link to DD 448|Browser version of DD 448/.test(await t.evaluate(() => document.activeElement.getAttribute('aria-label') || document.activeElement.textContent)), 'Tab from a link reaches its controls, drawn as the keyboard arrives');
+  // search waits for a pause in typing, then answers; Enter answers at once
+  await t.fill('#q', 'interdepartmental');
+  await t.waitForFunction(() => /result/.test(document.getElementById('main').textContent));
+  await t.fill('#q', 'interdepartmental'); await t.press('#q', 'Enter');
   ok((await t.$$eval('#main .lrow .cname', a => a.map(x => x.textContent))).includes('DD 448'), 'search finds a link by a keyword it does not show');
-  await t.fill('#q', 'funding board'); await t.dispatchEvent('#q', 'input');
+  await t.fill('#q', 'funding board'); await t.press('#q', 'Enter');
   ok((await t.$$eval('#main .gt dt', a => a.map(x => x.textContent))).includes('SFCB'), 'search finds a glossary term by its meaning');
   await t.fill('#q', ''); await t.dispatchEvent('#q', 'input');
   await t.click('.tabs [data-tab="gloss"]');
@@ -355,6 +363,21 @@ ok((await r2.$$eval('#main .scard h3', a => a.map(x => x.textContent))).filter(x
   const G = await person('Gus Hale'); await G.goto('file://' + D + 'fileF.html'); await G.click('.tabs [data-tab="tools"]');
   ok(await G.$eval('a.btn.pri[data-open="orbit"]', a => a.getAttribute('href')) === 'file:///S:/Budget/ORBIT.html', 'tool links: the ORBIT card opens the drive path');
   ok(!/github/i.test(readFileSync(D + 'fileF.html', 'utf8')), 'tool links: the team copy still says nothing of GitHub');
+}
+// a long section shows 12 on Everything and a Show all button; its tab and search show every link
+{
+  const many = readFileSync(ROOT + 'sustainment-dashboard.html', 'utf8').replace(/(<script id="catData" type="application\/json">)([\s\S]*?)(<\/script>)/, (m, a, j, z) => {
+    const c = JSON.parse(j); c.items = c.items.concat(Array.from({ length: 30 }, (_, i) => ({ name: 'Bulk ' + String(i).padStart(2, '0'), note: '', category: 'trackers', type: 'web', url: 'https://bulk.example.mil/' + i })));
+    return a + JSON.stringify(c).replace(/</g, '\\u003c') + z; });
+  writeFileSync(D + 'many.html', many);
+  const ctx7 = await b.newContext(); const m = await ctx7.newPage(); m.on('pageerror', e => errs.push('many: ' + e.message));
+  await m.goto('file://' + D + 'many.html');
+  const card = '.scard:has(#sc-trackers)';
+  ok((await m.$$eval(card + ' .lrow', a => a.length)) === 12 && /32 links/.test(await m.$eval(card + ' .sn', e => e.textContent)), 'Everything shows a long section’s first 12, and counts them all');
+  await m.click(card + ' .smore');
+  ok((await m.$$eval(card + ' .lrow', a => a.length)) === 32 && !(await m.$(card + ' .smore')), 'Show all shows every link in the section');
+  await m.fill('#q', 'bulk'); await m.press('#q', 'Enter');
+  ok((await m.$$eval('#main .lrow .cname', a => a.filter(x => /^Bulk/.test(x.textContent)).length)) === 30, 'search shows every match, uncapped');
 }
 console.log('page errors:', errs.length ? errs : 'none'); await b.close();
 if (failed || errs.length) { console.error(failed + ' FAILING, ' + errs.length + ' page error(s)'); process.exit(1); }

@@ -118,7 +118,6 @@ footer.foot{margin:28px 0 0;padding-top:10px;border-top:1px solid var(--sline);c
 .t-excel{background:#1d6f42}.t-powerpoint{background:#b7472a}.t-word{background:#2b579a}.t-pdf{background:#8c1d3f;font-size:10px}
 .t-sharepoint{background:#036c70}.t-teams{background:#4b53bc}.t-folder{background:#627185}.t-web{background:var(--steal)}
 .btn.sm{min-height:30px;padding:4px 11px;font-size:13px}
-.btn.ico-only{width:32px;padding:0;justify-content:center}
 
 /* the maintainer bar and the catalog editor (maintainer copy only; the team copy never draws them) */
 .maint{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;padding:6px 20px;background:var(--ochreBg);border-bottom:1px solid var(--ochre);color:#5c3706;font-size:13px;font-weight:700}
@@ -327,3 +326,7 @@ ol.steps li{margin:0 0 8px}
 .ttw .ttile{height:100%;box-sizing:border-box;padding-right:44px}
 .ttw .ttedit{position:absolute;top:10px;right:8px;background:var(--card);border:1px solid var(--cardLine)}
 
+/* Show all, at the foot of a long section on Everything */
+.smore{display:block;width:100%;padding:9px 14px;border:0;border-top:1px solid #edf0f4;background:#f7f9fb;color:var(--slink);font:inherit;font-weight:700;text-align:left;cursor:pointer}
+.smore:hover{background:var(--ssel)}
+.smore:focus-visible{outline-offset:-3px}

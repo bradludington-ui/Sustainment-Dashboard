@@ -86,6 +86,12 @@ dashboard, and more). See README.md for what it is and how it is updated.
 - **A browser test never touches storage from an init script**: in Chromium a `file://` page that touches storage while
   it is being created can get a storage area of its own, and a reload lands in another (drafts "vanished" until the
   tests seeded the name from the loaded page, `seedWho`). ORBIT's pmo-save check met the same thing.
+- **Draw only what can be seen (v1.11, Brad, 25 Nov 2026: "optimize the code").** Measured on 600 links with the CPU
+  slowed 4×: the cost was the browser laying out hidden controls, not the JavaScript. So a row's Browser, Copy and
+  Report are drawn when the row is hovered or focused (`lmoreHtml` via `rowReached`; on a touch screen, after every
+  draw), Everything shows a long section's first `CARD_CAP` links with Show all (its tab and search show all), and the
+  search waits for a pause in typing (Enter answers at once). Opening went 1.2 s → 0.5 s, editing 1.0 s → 0.2 s,
+  starring 0.7 s → 0.2 s. Tried and undone: one shared icon `<use>`d by every row made layout slower. Measure first.
 - **`npm test`** drives the page in Chromium end to end (`tools/editor-test.mjs`); run it with `npm run check` before a
   commit that touches app.js, edit.js or maint.js.
 - Check appearance with `npm run shoot` at 1440, 1366 and a phone width (420) before calling a change done

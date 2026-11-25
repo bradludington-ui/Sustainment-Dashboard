@@ -127,7 +127,6 @@ footer.foot{margin:28px 0 0;padding-top:10px;border-top:1px solid var(--sline);c
 .t-excel{background:#1d6f42}.t-powerpoint{background:#b7472a}.t-word{background:#2b579a}.t-pdf{background:#8c1d3f;font-size:10px}
 .t-sharepoint{background:#036c70}.t-teams{background:#4b53bc}.t-folder{background:#627185}.t-web{background:var(--steal)}
 .btn.sm{min-height:30px;padding:4px 11px;font-size:13px}
-.btn.ico-only{width:32px;padding:0;justify-content:center}
 
 /* the maintainer bar and the catalog editor (maintainer copy only; the team copy never draws them) */
 .maint{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;padding:6px 20px;background:var(--ochreBg);border-bottom:1px solid var(--ochre);color:#5c3706;font-size:13px;font-weight:700}
@@ -335,6 +334,11 @@ ol.steps li{margin:0 0 8px}
 .ttw{position:relative}
 .ttw .ttile{height:100%;box-sizing:border-box;padding-right:44px}
 .ttw .ttedit{position:absolute;top:10px;right:8px;background:var(--card);border:1px solid var(--cardLine)}
+
+/* Show all, at the foot of a long section on Everything */
+.smore{display:block;width:100%;padding:9px 14px;border:0;border-top:1px solid #edf0f4;background:#f7f9fb;color:var(--slink);font:inherit;font-weight:700;text-align:left;cursor:pointer}
+.smore:hover{background:var(--ssel)}
+.smore:focus-visible{outline-offset:-3px}
 </style>
 </head>
 <body>
@@ -1420,7 +1424,7 @@ function delTerm(term) {
 // pinned and what was opened lately.
 
 // this program's version: shown in the footer, and written into every file it saves, so a file says which version wrote it
-const VERSION = 'v1.10';
+const VERSION = 'v1.11';
 const STATUS = {
   live:    { label: 'Live',           cls: 'st-live',    order: 0 },
   dev:     { label: 'In development', cls: 'st-dev',     order: 1 },
@@ -1614,7 +1618,9 @@ const dateTxt = d => { const [y, m, dd] = d.split('-'); return +dd + ' ' + MON[+
 // today in the reader's own time zone, as YYYY-MM-DD, so "upcoming" turns into "past" at their midnight, not UTC's
 const today = () => { const t = new Date(); return t.getFullYear() + '-' + String(t.getMonth() + 1).padStart(2, '0') + '-' + String(t.getDate()).padStart(2, '0'); };
 // within a section: undated links by name first (a schedule, a reference), then dated ones newest first
-const linkOrder = (a, b) => (!!a.date - !!b.date) || (a.date && b.date && b.date.localeCompare(a.date)) || String(a.name).localeCompare(String(b.name));
+// names in a person's order: "SF 182" before "SF 1556", "Tracker 2" before "Tracker 10", capitals ignored
+const NAME_ORDER = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
+const linkOrder = (a, b) => (!!a.date - !!b.date) || (a.date && b.date && b.date.localeCompare(a.date)) || NAME_ORDER.compare(String(a.name), String(b.name));
 function readCatalog() {
   try { const el = document.getElementById('catData'); return normCatalog(JSON.parse(el ? el.textContent : 'null') || {}); }
   catch (e) { const c = normCatalog({}); c.fixed.push('the catalog in this file could not be read (' + e.message + ')'); return c; }
@@ -1641,6 +1647,7 @@ const S = {
   tab: String(store.get('tab', 'all')),
   status: store.get('status', 'all'),
   q: '',
+  more: new Set(),   // sections opened with Show all, for this visit
 };
 const areas = () => DASH.areas || [];
 // a tool's link is the one this office set in the page (CATALOG.tools), else the one in the tool list
@@ -1673,10 +1680,15 @@ function matches(t, q) {
   return q.toLowerCase().split(/\s+/).filter(Boolean).every(w => hay.includes(w));
 }
 // the search words, marked where they appear in a piece of text (escaped first, so a mark never meets markup)
+let _hlQ = null, _hlRe = null;
 function hl(text) {
   const s = esc(text);
-  const words = S.q.trim().split(/\s+/).filter(w => w.length > 1).map(w => esc(w).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
-  return words.length ? s.replace(new RegExp('(' + words.join('|') + ')', 'gi'), '<mark>$1</mark>') : s;
+  if (_hlQ !== S.q) {
+    _hlQ = S.q;
+    const words = S.q.trim().split(/\s+/).filter(w => w.length > 1).map(w => esc(w).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+    _hlRe = words.length ? new RegExp('(' + words.join('|') + ')', 'gi') : null;
+  }
+  return _hlRe ? s.replace(_hlRe, '<mark>$1</mark>') : s;
 }
 function cmatches(c, q) {
   if (!q) return true;
@@ -1758,18 +1770,34 @@ function lrow(c) {
   return '<li class="lrow' + (h ? '' : ' off') + '">' + typeTile(c) + '<span class="lmain">' + name
     + '<small>' + (c.date ? '<span class="ldate' + (c.date >= today() ? ' up' : '') + '">' + esc(dateTxt(c.date)) + '</span>' : '')
     + (c.note ? hl(c.note) : c.date ? '' : esc(T.label)) + (h ? '' : ' · link not set') + '</small></span>'
-    + '<span class="lacts"><span class="lmore">' + web + (h ? '<button type="button" class="lic" data-ccopy="' + esc(k) + '" title="Copy link" aria-label="Copy the link to ' + esc(c.name) + '">' + UI.copy + '</button>' : '')
-    + (h && CATALOG.meta.contact ? '<a class="lic" href="' + esc(mailto('Broken link on the Sustainment Dashboard: ' + c.name,
-        'The link “' + c.name + '” (' + ((catOf(c) || {}).name || 'Other') + ') does not open, or opens the wrong thing.\n\nLink: ' + c.url.trim() + '\n\nWhat happened:\n')) + '" title="Report a broken link" aria-label="Report a broken link: ' + esc(c.name) + '">' + UI.flag + '</a>' : '') + '</span>'
+    + '<span class="lacts">' + (h ? '<span class="lmore" data-k="' + esc(k) + '"></span>' : '')
     + HOOK('rowActs', c, k) + pinBtn(c, k) + '</span></li>';
 }
+// Browser, Copy link and Report, for ONE row: filled in when the row is hovered or the keyboard reaches it (rowReached),
+// never up front. On every row they were 1,800 icons and a long email address each, and with 600 links the browser
+// spent more than half a second laying out controls nobody could see.
+function lmoreHtml(c, k) {
+  const h = hrefOf(c); if (!h) return '';
+  return (h.web ? '<a class="lweb" href="' + esc(h.web) + '" target="_blank" rel="noopener noreferrer" data-open="' + esc(k) + '" title="Open in the browser instead">Browser<span class="vh"> version of ' + esc(c.name) + ' (opens in a new tab)</span></a>' : '')
+    + '<button type="button" class="lic" data-ccopy="' + esc(k) + '" title="Copy link" aria-label="Copy the link to ' + esc(c.name) + '">' + UI.copy + '</button>'
+    + (CATALOG.meta.contact ? '<a class="lic" href="' + esc(mailto('Broken link on the Sustainment Dashboard: ' + c.name,
+        'The link “' + c.name + '” (' + ((catOf(c) || {}).name || 'Other') + ') does not open, or opens the wrong thing.\n\nLink: ' + c.url.trim() + '\n\nWhat happened:\n')) + '" title="Report a broken link" aria-label="Report a broken link: ' + esc(c.name) + '">' + UI.flag + '</a>' : '');
+}
+function rowReached(e) {
+  const m = e.target.closest && e.target.closest('.lrow') && e.target.closest('.lrow').querySelector('.lmore:empty'); if (!m) return;
+  const c = citems().find(x => ckey(x) === m.dataset.k); if (c) m.innerHTML = lmoreHtml(c, m.dataset.k);
+}
+// a touch screen has no hover: there every row's controls are drawn (and phones list fewer links at a time)
+const noHover = () => { try { return matchMedia('(hover: none)').matches; } catch { return false; } };
 function secCard(g, list, o = {}) {
   const color = o.color || (g.id ? secColor(g.id) : '#5d6878'), hid = 'sc-' + esc(o.sub || g.id || 'other');
   return '<section class="scard" style="--sc:' + color + '" aria-labelledby="' + hid + '"><header><h3 id="' + hid + '">' + esc(g.name) + '</h3>'
-    + '<span class="sn">' + list.length + ' link' + (list.length === 1 ? '' : 's') + '</span>' + (o.acts !== undefined ? o.acts : g.id ? HOOK('sectionActs', g) : '') + '</header>'
+    + '<span class="sn">' + (o.total || list.length) + ' link' + ((o.total || list.length) === 1 ? '' : 's') + '</span>' + (o.acts !== undefined ? o.acts : g.id ? HOOK('sectionActs', g) : '') + '</header>'
     + (g.blurb && (editing() || !list.length) ? '<p class="sblurb">' + esc(g.blurb) + '</p>' : '')
-    + (list.length ? '<ul class="llist">' + list.map(lrow).join('') + '</ul>' : '<p class="sempty">' + esc(o.empty || 'No links in this section yet.') + '</p>') + '</section>';
+    + (list.length ? '<ul class="llist">' + list.map(lrow).join('') + '</ul>' : '<p class="sempty">' + esc(o.empty || 'No links in this section yet.') + '</p>')
+    + (o.total ? '<button type="button" class="smore" data-more="' + esc(g.id) + '">Show all ' + o.total + ' links<span class="vh"> in ' + esc(g.name) + '</span> ›</button>' : '') + '</section>';
 }
+const CARD_CAP = 12;   // on Everything, a section shows this many links and a Show all button; its own tab and search show all
 function catalogCards(links, opts = {}) {
   const ed = editing() && !S.q;
   const groups = cats().concat([{ id: '', name: 'Other', blurb: '' }]);
@@ -1778,7 +1806,8 @@ function catalogCards(links, opts = {}) {
     if (opts.only && g.id !== opts.only) continue;
     const list = links.filter(c => g.id ? c.category === g.id : !catOf(c)).sort(linkOrder);
     if (!list.length && !(ed && g.id && !opts.byKind) && !(opts.only && g.id === opts.only)) continue;
-    n++; h += secCard(g, list);
+    const cap = opts.cap && list.length > CARD_CAP + 3 && !S.more.has(g.id) ? CARD_CAP : 0;   // while editing too: Show all is one click
+    n++; h += secCard(g, cap ? list.slice(0, cap) : list, cap ? { total: list.length } : {});
   }
   return n ? '<div class="mason">' + h + '</div>' : '';
 }
@@ -1890,7 +1919,7 @@ function mainHtml() {
   return newsHtml() + recentHtml() + pinnedHtml()
     + '<h2 class="sh">Tools<small><button type="button" class="lnk" data-tab="tools">all tools ›</button></small></h2><div class="trow">' + T.map(t => editing() ? '<div class="ttw">' + toolTile(t) + HOOK('toolActs', t) + '</div>' : toolTile(t)).join('') + '</div>'
     + '<h2 class="sh">Catalog<small>' + cats().length + ' sections · ' + citems().length + ' links</small></h2>'
-    + (catalogCards(citems()) || '<div class="empty">No links yet.</div>') + (editing() ? HOOK('catalogFoot') : '');
+    + (catalogCards(citems(), { cap: true }) || '<div class="empty">No links yet.</div>') + (editing() ? HOOK('catalogFoot') : '');
 }
 
 function draw() {
@@ -1907,7 +1936,9 @@ function draw() {
   const stale = location.protocol === 'file:' && (/[\\/]downloads[\\/]/i.test(path) || /\(\d+\)\.html?$/i.test(path));
   document.getElementById('staleNote').innerHTML = stale && !HAS_MAINT ? '<p class="stale" role="note"><b>This is a downloaded copy</b>' + (up ? ', with links as of ' + esc(up) : '')
     + '. It does not change when someone else updates the dashboard: open it from Teams again to see the latest. If you edit links here, Save, then upload it back to Teams (Help explains).</p>' : '';
-  document.getElementById('main').innerHTML = mainHtml() + '<footer class="foot">This page holds no data: it is a list of links. Pins and recently opened are kept in your browser only.' + HOOK('footNote') + ' <span class="ver">Sustainment Dashboard ' + VERSION + '</span></footer>';
+  const main = document.getElementById('main');
+  main.innerHTML = mainHtml() + '<footer class="foot">This page holds no data: it is a list of links. Pins and recently opened are kept in your browser only.' + HOOK('footNote') + ' <span class="ver">Sustainment Dashboard ' + VERSION + '</span></footer>';
+  if (noHover()) main.querySelectorAll('.lmore:empty').forEach(m => { const c = citems().find(x => ckey(x) === m.dataset.k); if (c) m.innerHTML = lmoreHtml(c, m.dataset.k); });
 }
 
 function toast(msg) {
@@ -1980,7 +2011,11 @@ function boot() {
     + '<dialog class="sdlg" id="sdlg" aria-labelledby="sdlgT"></dialog>';
   HOOK('init');
   const q = document.getElementById('q');
-  q.addEventListener('input', () => { S.q = q.value.trim(); draw(); });
+  // search after a short pause in typing, so a fast typist is not made to wait for every letter's redraw
+  let qT = 0;
+  q.addEventListener('input', () => { clearTimeout(qT); const v = q.value.trim(); if (!v) { S.q = ''; draw(); return; } qT = setTimeout(() => { S.q = q.value.trim(); draw(); }, 140); });
+  q.addEventListener('keydown', e => { if (e.key === 'Enter') { clearTimeout(qT); S.q = q.value.trim(); draw(); } });
+  document.addEventListener('mouseover', rowReached); document.addEventListener('focusin', rowReached);
   document.addEventListener('keydown', e => {
     if (e.key === '/' && document.activeElement !== q && !/^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName) && !document.querySelector('dialog[open]')) { e.preventDefault(); q.focus(); }
     else if (e.key === 'Escape' && document.activeElement === q && q.value) { q.value = ''; S.q = ''; draw(); }
@@ -1995,6 +2030,8 @@ function boot() {
       if (tb.classList.contains('lnk') && S.q === '') window.scrollTo(0, 0);
       draw(); document.querySelector('.tabs [data-tab="' + CSS.escape(S.tab) + '"]')?.focus(); return;
     }
+    const mo = e.target.closest('[data-more]');
+    if (mo) { S.more.add(mo.dataset.more); draw(); document.querySelector('#sc-' + CSS.escape(mo.dataset.more))?.closest('.scard')?.querySelectorAll('.lrow')[CARD_CAP]?.querySelector('.cname')?.focus(); return; }
     const s = e.target.closest('[data-status]');
     if (s) { S.status = s.dataset.status; store.set('status', S.status); draw(); document.querySelector('[data-status="' + CSS.escape(S.status) + '"]')?.focus(); return; }
     const pn = e.target.closest('[data-pin]');
